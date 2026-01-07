@@ -2,22 +2,36 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import FileUpload from '@/components/upload/FileUpload';
+import LanguageSelector from '@/components/insights/LanguageSelector';
 import { Upload as UploadIcon } from 'lucide-react';
+import { useBillAnalysis } from '@/hooks/useBillAnalysis';
+import { SupportedLanguage } from '@/types/bill';
 
 const Upload = () => {
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('english');
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const { isProcessing, analyzeBill } = useBillAnalysis();
 
   const handleFileSelect = async (file: File) => {
-    setIsProcessing(true);
+    setCurrentFile(file);
+    const result = await analyzeBill(file, selectedLanguage);
     
-    // Simulate API call with timeout
-    // In production, this would call the Azure backend
-    setTimeout(() => {
-      setIsProcessing(false);
-      // Navigate to insights page with mock data
-      navigate('/insights');
-    }, 2500);
+    if (result) {
+      // Store insights and file in sessionStorage for the insights page
+      sessionStorage.setItem('billInsights', JSON.stringify(result));
+      sessionStorage.setItem('selectedLanguage', selectedLanguage);
+      
+      // Store the file as base64 for re-analysis with different language
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        sessionStorage.setItem('uploadedBillBase64', reader.result as string);
+        sessionStorage.setItem('uploadedBillName', file.name);
+        sessionStorage.setItem('uploadedBillType', file.type);
+        navigate('/insights');
+      };
+    }
   };
 
   return (
@@ -31,10 +45,22 @@ const Upload = () => {
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Upload Your Electricity Bill
             </h1>
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-6">
               Upload a clear photo or PDF of your electricity bill. 
               Our AI will analyze it and explain everything in simple language.
             </p>
+
+            {/* Language Selector */}
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-secondary">
+                <span className="text-sm text-muted-foreground">Explanation Language:</span>
+                <LanguageSelector 
+                  value={selectedLanguage} 
+                  onChange={setSelectedLanguage}
+                  disabled={isProcessing}
+                />
+              </div>
+            </div>
           </div>
 
           <FileUpload onFileSelect={handleFileSelect} isProcessing={isProcessing} />
@@ -49,7 +75,7 @@ const Upload = () => {
                 <div>
                   <p className="font-medium text-foreground">Analyzing your bill...</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Reading bill details using OCR and processing with AI
+                    Reading bill details with AI vision and generating insights
                   </p>
                 </div>
               </div>

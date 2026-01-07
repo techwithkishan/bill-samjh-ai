@@ -43,3 +43,14 @@ export interface UploadState {
   error: string | null;
   progress: number;
 }
+
+export type SupportedLanguage = 'english' | 'hindi' | 'tamil' | 'telugu' | 'marathi' | 'bengali';
+
+export const languageLabels: Record<SupportedLanguage, string> = {
+  english: 'English',
+  hindi: 'हिंदी (Hindi)',
+  tamil: 'தமிழ் (Tamil)',
+  telugu: 'తెలుగు (Telugu)',
+  marathi: 'मराठी (Marathi)',
+  bengali: 'বাংলা (Bengali)',
+};
