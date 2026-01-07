@@ -8,6 +8,7 @@ import Upload from "./pages/Upload";
 import Insights from "./pages/Insights";
 import Technology from "./pages/Technology";
 import Learn from "./pages/Learn";
+import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/insights" element={<Insights />} />
           <Route path="/technology" element={<Technology />} />
           <Route path="/learn" element={<Learn />} />
+          <Route path="/history" element={<History />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

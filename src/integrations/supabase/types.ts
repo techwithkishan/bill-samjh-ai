@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bill_analyses: {
+        Row: {
+          ai_factors: string[] | null
+          ai_hinglish_explanation: string | null
+          ai_summary: string | null
+          billing_month: string
+          consumer_number: string | null
+          created_at: string
+          due_date: string | null
+          estimated_amount: number | null
+          estimated_units: number | null
+          estimation_confidence: string | null
+          estimation_methodology: string | null
+          id: string
+          language: string | null
+          previous_amount: number | null
+          previous_units: number | null
+          savings_tips: Json | null
+          session_id: string
+          tariff_category: string | null
+          total_amount: number
+          total_units: number
+        }
+        Insert: {
+          ai_factors?: string[] | null
+          ai_hinglish_explanation?: string | null
+          ai_summary?: string | null
+          billing_month: string
+          consumer_number?: string | null
+          created_at?: string
+          due_date?: string | null
+          estimated_amount?: number | null
+          estimated_units?: number | null
+          estimation_confidence?: string | null
+          estimation_methodology?: string | null
+          id?: string
+          language?: string | null
+          previous_amount?: number | null
+          previous_units?: number | null
+          savings_tips?: Json | null
+          session_id: string
+          tariff_category?: string | null
+          total_amount: number
+          total_units: number
+        }
+        Update: {
+          ai_factors?: string[] | null
+          ai_hinglish_explanation?: string | null
+          ai_summary?: string | null
+          billing_month?: string
+          consumer_number?: string | null
+          created_at?: string
+          due_date?: string | null
+          estimated_amount?: number | null
+          estimated_units?: number | null
+          estimation_confidence?: string | null
+          estimation_methodology?: string | null
+          id?: string
+          language?: string | null
+          previous_amount?: number | null
+          previous_units?: number | null
+          savings_tips?: Json | null
+          session_id?: string
+          tariff_category?: string | null
+          total_amount?: number
+          total_units?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
