@@ -12,26 +12,37 @@ import { Button } from '@/components/ui/button';
 import { BillInsights, SupportedLanguage } from '@/types/bill';
 import { mockBillInsights } from '@/data/mockBillData';
 import { useBillAnalysis } from '@/hooks/useBillAnalysis';
+import { useBillHistory } from '@/hooks/useBillHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const Insights = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isProcessing, analyzeBill } = useBillAnalysis();
+  const { saveBillAnalysis } = useBillHistory();
   const [insights, setInsights] = useState<BillInsights | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('english');
   const [hasStoredFile, setHasStoredFile] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
 
   useEffect(() => {
     // Try to load insights from sessionStorage
     const storedInsights = sessionStorage.getItem('billInsights');
     const storedLanguage = sessionStorage.getItem('selectedLanguage') as SupportedLanguage;
     const storedFile = sessionStorage.getItem('uploadedBillBase64');
+    const alreadySaved = sessionStorage.getItem('billSaved');
 
     if (storedInsights) {
-      setInsights(JSON.parse(storedInsights));
+      const parsedInsights = JSON.parse(storedInsights);
+      setInsights(parsedInsights);
       if (storedLanguage) {
         setSelectedLanguage(storedLanguage);
+      }
+      // Auto-save to history if not already saved
+      if (!alreadySaved) {
+        saveBillAnalysis(parsedInsights);
+        sessionStorage.setItem('billSaved', 'true');
+        setHasSaved(true);
       }
     } else {
       // Use mock data if no real data
