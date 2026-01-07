@@ -29,7 +29,8 @@ export const useBillHistory = () => {
         .from('bill_analyses')
         .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, created_at')
         .eq('session_id', sessionId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .setHeader('x-session-id', sessionId);
 
       if (!error && data) {
         setHistory(data);
@@ -63,7 +64,7 @@ export const useBillHistory = () => {
       savings_tips: insights.savingsTips as unknown as Record<string, unknown>[],
     };
 
-    const { error } = await supabase.from('bill_analyses').insert(insertData as any);
+    const { error } = await supabase.from('bill_analyses').insert(insertData as any).setHeader('x-session-id', sessionId);
 
     if (!error) {
       // Refresh history
@@ -71,7 +72,8 @@ export const useBillHistory = () => {
         .from('bill_analyses')
         .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, created_at')
         .eq('session_id', sessionId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .setHeader('x-session-id', sessionId);
 
       if (data) setHistory(data);
     }
