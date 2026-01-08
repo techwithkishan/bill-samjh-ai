@@ -1,9 +1,11 @@
+import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useBillHistory } from '@/hooks/useBillHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, BarChart, Bar, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, BarChart, Bar } from 'recharts';
 import { format } from 'date-fns';
 
 const History = () => {
@@ -64,13 +66,23 @@ const History = () => {
       <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Header */}
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-              Bill History & Trends
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Track your electricity consumption patterns over time and identify savings opportunities.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+                Bill History & Trends
+              </h1>
+              <p className="text-muted-foreground max-w-2xl">
+                Track your electricity consumption patterns over time and identify savings opportunities.
+              </p>
+            </div>
+            {history.length >= 2 && (
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link to="/compare">
+                  <GitCompare className="h-5 w-5 mr-2" />
+                  Compare Bills
+                </Link>
+              </Button>
+            )}
           </div>
 
           {history.length === 0 ? (
