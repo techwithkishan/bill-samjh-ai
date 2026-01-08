@@ -13,7 +13,7 @@ export const mockBillInsights: BillInsights = {
   },
   aiExplanation: {
     summary:
-      "ladle bijli bill consumption increased by 55% this month compared to last month. This is primarily due to increased heating appliance usage during winter and extended evening hours.",
+      "Your electricity consumption increased by 55% this month compared to last month. This is primarily due to increased heating appliance usage during winter and extended evening hours.",
     hinglishExplanation:
       "Is mahine aapka bijli ka bill zyada aaya hai kyunki December mein heater aur geyser ka use badh gaya. Raat ko lights bhi zyada der tak chali. Peak hours (6-10 PM) mein usage 40% zyada tha pichle mahine se.",
     factors: [
