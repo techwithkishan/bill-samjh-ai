@@ -95,5 +95,22 @@ export const useBillHistory = () => {
     return true;
   }, [sessionId, supabase, fetchHistory]);
 
-  return { history, isLoading, saveBillAnalysis, sessionId, refreshHistory: fetchHistory };
+  const deleteBill = useCallback(async (billId: string): Promise<boolean> => {
+    if (!sessionId) return false;
+
+    const { error } = await supabase
+      .from('bill_analyses')
+      .delete()
+      .eq('id', billId);
+
+    if (error) {
+      console.error('Error deleting bill:', error);
+      return false;
+    }
+
+    await fetchHistory();
+    return true;
+  }, [sessionId, supabase, fetchHistory]);
+
+  return { history, isLoading, saveBillAnalysis, deleteBill, sessionId, refreshHistory: fetchHistory };
 };
