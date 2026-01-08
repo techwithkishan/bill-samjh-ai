@@ -40,9 +40,24 @@ const Insights = () => {
       }
       // Auto-save to history if not already saved
       if (!alreadySaved) {
-        saveBillAnalysis(parsedInsights).then(() => {
-          sessionStorage.setItem('billSaved', 'true');
-          setHasSaved(true);
+        console.log('Saving bill analysis to database...');
+        saveBillAnalysis(parsedInsights).then((success) => {
+          if (success) {
+            console.log('Bill saved successfully!');
+            sessionStorage.setItem('billSaved', 'true');
+            setHasSaved(true);
+            toast({
+              title: 'Bill saved',
+              description: 'Your bill has been saved to history for analytics.',
+            });
+          } else {
+            console.error('Failed to save bill');
+            toast({
+              title: 'Could not save bill',
+              description: 'There was an issue saving to history. Your analysis is still available.',
+              variant: 'destructive',
+            });
+          }
         });
       }
     } else {
@@ -51,7 +66,7 @@ const Insights = () => {
     }
 
     setHasStoredFile(!!storedFile);
-  }, [saveBillAnalysis]);
+  }, [saveBillAnalysis, toast]);
 
   const handleLanguageChange = async (newLanguage: SupportedLanguage) => {
     const storedBase64 = sessionStorage.getItem('uploadedBillBase64');
