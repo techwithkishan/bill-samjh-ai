@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useBillHistory } from '@/hooks/useBillHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare, Trash2, Eye } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, BarChart, Bar } from 'recharts';
 import { format } from 'date-fns';
@@ -14,6 +14,39 @@ import { useToast } from '@/hooks/use-toast';
 const History = () => {
   const { history, isLoading, deleteBill } = useBillHistory();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const viewBillInsights = (record: typeof history[0]) => {
+    // Store bill data in sessionStorage for the Insights page
+    const insights = {
+      totalUnits: record.total_units,
+      totalAmount: record.total_amount,
+      billingMonth: record.billing_month,
+      previousUnits: record.previous_units,
+      previousAmount: record.previous_amount,
+      estimatedUnits: record.estimated_units,
+      estimatedAmount: record.estimated_amount,
+      savingsTips: record.savings_tips || [],
+      billType: record.bill_type || 'electricity',
+      language: record.language || 'english',
+      fixedCharges: record.fixed_charges,
+      taxesGst: record.taxes_gst,
+      additionalCharges: record.additional_charges,
+      dueAmount: record.due_amount,
+      dueDate: record.due_date,
+      consumerNumber: record.consumer_number,
+      tariffCategory: record.tariff_category,
+      aiSummary: record.ai_summary,
+      aiHinglishExplanation: record.ai_hinglish_explanation,
+      aiFactors: record.ai_factors,
+      estimationMethodology: record.estimation_methodology,
+      estimationConfidence: record.estimation_confidence,
+    };
+    sessionStorage.setItem('billInsights', JSON.stringify(insights));
+    sessionStorage.setItem('selectedLanguage', record.language || 'english');
+    sessionStorage.setItem('hasStoredFile', 'false'); // No file, viewing from history
+    navigate('/insights');
+  };
 
   const chartData = [...history]
     .reverse()
@@ -243,7 +276,11 @@ const History = () => {
                             : null;
                           const config = billTypeConfig[(record.bill_type || 'electricity') as BillType];
                           return (
-                            <tr key={record.id} className="border-b last:border-0">
+                            <tr 
+                              key={record.id} 
+                              className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                              onClick={() => viewBillInsights(record)}
+                            >
                               <td className="py-3 px-2 font-medium">
                                 <span className="flex items-center gap-2">
                                   <span>{config?.icon || '⚡'}</span>
@@ -261,28 +298,42 @@ const History = () => {
                                 {format(new Date(record.created_at), 'dd MMM yyyy')}
                               </td>
                               <td className="text-right py-3 px-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={async () => {
-                                    const deleted = await deleteBill(record.id);
-                                    if (deleted) {
-                                      toast({
-                                        title: 'Bill Deleted',
-                                        description: 'The bill has been removed from your history.',
-                                      });
-                                    } else {
-                                      toast({
-                                        title: 'Delete Failed',
-                                        description: 'Could not delete the bill. Please try again.',
-                                        variant: 'destructive',
-                                      });
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewBillInsights(record);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const deleted = await deleteBill(record.id);
+                                      if (deleted) {
+                                        toast({
+                                          title: 'Bill Deleted',
+                                          description: 'The bill has been removed from your history.',
+                                        });
+                                      } else {
+                                        toast({
+                                          title: 'Delete Failed',
+                                          description: 'Could not delete the bill. Please try again.',
+                                          variant: 'destructive',
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           );

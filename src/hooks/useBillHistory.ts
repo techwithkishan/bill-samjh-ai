@@ -10,9 +10,23 @@ export interface BillHistoryRecord {
   total_amount: number;
   previous_units: number | null;
   previous_amount: number | null;
+  estimated_units: number | null;
+  estimated_amount: number | null;
   tariff_category: string | null;
   consumer_number: string | null;
   bill_type: string | null;
+  language: string | null;
+  fixed_charges: number | null;
+  taxes_gst: number | null;
+  additional_charges: number | null;
+  due_amount: number | null;
+  due_date: string | null;
+  ai_summary: string | null;
+  ai_hinglish_explanation: string | null;
+  ai_factors: string[] | null;
+  estimation_methodology: string | null;
+  estimation_confidence: string | null;
+  savings_tips: unknown;
   created_at: string;
 }
 
@@ -31,7 +45,7 @@ export const useBillHistory = () => {
     try {
       const { data, error } = await supabase
         .from('bill_analyses')
-        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
