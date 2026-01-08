@@ -33,3 +33,6 @@ enable_confirmations = false
 
 [functions.analyze-bill]
 verify_jwt = false
+
+[functions.fetch-government-schemes]
+verify_jwt = false
