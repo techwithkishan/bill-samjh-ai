@@ -14,6 +14,7 @@ interface SimpleUploadCardProps {
   title: string;
   billNumber: 1 | 2;
   onFileSelected: (file: File, billType: BillType) => void;
+  onClear: () => void;
   isProcessing: boolean;
   analyzedBill: BillInsights | null;
   selectedFile: File | null;
@@ -29,7 +30,8 @@ const billTypeIcons: Record<BillType, React.ReactNode> = {
 const SimpleUploadCard = ({ 
   title, 
   billNumber, 
-  onFileSelected, 
+  onFileSelected,
+  onClear,
   isProcessing, 
   analyzedBill,
   selectedFile: externalSelectedFile
@@ -97,6 +99,7 @@ const SimpleUploadCard = ({
   const handleRemoveFile = () => {
     setLocalFile(null);
     setError(null);
+    onClear(); // Notify parent to clear the bill
   };
 
   const getFileIcon = (type: string) => {

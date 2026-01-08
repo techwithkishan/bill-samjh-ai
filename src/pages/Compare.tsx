@@ -119,18 +119,44 @@ const Compare = () => {
     setSelectedHistoryBill2('');
   };
 
+  const handleClearBill1 = () => {
+    setBill1(null);
+    setFile1(null);
+  };
+
+  const handleClearBill2 = () => {
+    setBill2(null);
+    setFile2(null);
+  };
+
   const canCompare = bill1 && bill2;
   const canAnalyze = file1 && file2 && !canCompare;
 
-  // Parse billing month to get date for comparison (e.g., "January 2024" -> Date)
+  // Parse billing month to get date for comparison
+  // Handles formats like "January 2024", "Jan 2024", "05/2024", "2024-05", etc.
   const parseBillingMonth = (billingMonth: string): Date => {
-    const parts = billingMonth.split(' ');
-    if (parts.length >= 2) {
-      const monthStr = parts[0];
-      const yearStr = parts[parts.length - 1];
-      const date = new Date(`${monthStr} 1, ${yearStr}`);
+    if (!billingMonth) return new Date(0);
+    
+    // Try "Month Year" format (e.g., "January 2024" or "Jan 2024")
+    const monthYearMatch = billingMonth.match(/^([A-Za-z]+)\s+(\d{4})$/);
+    if (monthYearMatch) {
+      const date = new Date(`${monthYearMatch[1]} 1, ${monthYearMatch[2]}`);
       if (!isNaN(date.getTime())) return date;
     }
+    
+    // Try "MM/YYYY" or "YYYY-MM" formats
+    const numericMatch = billingMonth.match(/(\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})/);
+    if (numericMatch) {
+      const month = numericMatch[1] || numericMatch[4];
+      const year = numericMatch[2] || numericMatch[3];
+      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+      if (!isNaN(date.getTime())) return date;
+    }
+    
+    // Fallback: try direct parsing
+    const directDate = new Date(billingMonth);
+    if (!isNaN(directDate.getTime())) return directDate;
+    
     return new Date(0); // fallback for unparseable dates
   };
 
@@ -257,18 +283,20 @@ const Compare = () => {
             <>
               <div className="grid md:grid-cols-2 gap-6">
                 <SimpleUploadCard
-                  title="Bill 1 (Base)"
+                  title="Bill 1"
                   billNumber={1}
                   onFileSelected={handleFile1Selected}
+                  onClear={handleClearBill1}
                   isProcessing={isAnalyzing}
                   analyzedBill={bill1?.insights || null}
                   selectedFile={file1?.file || null}
                 />
                 
                 <SimpleUploadCard
-                  title="Bill 2 (Compare To)"
+                  title="Bill 2"
                   billNumber={2}
                   onFileSelected={handleFile2Selected}
+                  onClear={handleClearBill2}
                   isProcessing={isAnalyzing}
                   analyzedBill={bill2?.insights || null}
                   selectedFile={file2?.file || null}
