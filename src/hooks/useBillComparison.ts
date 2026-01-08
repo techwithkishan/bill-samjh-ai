@@ -3,8 +3,8 @@
  * Handles fetching bills, calculating differences, detecting anomalies, and generating insights
  */
 
-import { useState, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { getSupabaseWithSession } from '@/lib/supabaseWithSession';
 import { useSessionId } from './useSessionId';
 import { BillRecord, ComparisonResult, DifferenceData, Anomaly, COMPARISON_ROWS } from '@/types/comparison';
 
@@ -26,6 +26,9 @@ export const useBillComparison = (): UseBillComparisonReturn => {
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [excludedBills, setExcludedBills] = useState<Set<string>>(new Set());
 
+  // Create supabase client with session headers
+  const supabase = useMemo(() => getSupabaseWithSession(), []);
+
   // Fetch all bills for this session
   const fetchBills = useCallback(async () => {
     if (!sessionId) return;
@@ -34,9 +37,7 @@ export const useBillComparison = (): UseBillComparisonReturn => {
     const { data, error } = await supabase
       .from('bill_analyses')
       .select('id, billing_month, bill_type, total_units, total_amount, taxes_gst, fixed_charges, additional_charges, due_amount, previous_units, previous_amount, created_at')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .setHeader('x-session-id', sessionId);
+      .order('created_at', { ascending: false });
 
     if (!error && data) {
       // Map with default values for new columns
@@ -57,10 +58,10 @@ export const useBillComparison = (): UseBillComparisonReturn => {
       setBills(mappedBills);
     }
     setIsLoading(false);
-  }, [sessionId]);
+  }, [sessionId, supabase]);
 
   // Initial fetch
-  useMemo(() => {
+  useEffect(() => {
     fetchBills();
   }, [fetchBills]);
 
@@ -209,16 +210,14 @@ export const useBillComparison = (): UseBillComparisonReturn => {
     const { error } = await supabase
       .from('bill_analyses')
       .delete()
-      .eq('id', billId)
-      .eq('session_id', sessionId)
-      .setHeader('x-session-id', sessionId);
+      .eq('id', billId);
 
     if (!error) {
       setBills(prev => prev.filter(b => b.id !== billId));
       return true;
     }
     return false;
-  }, [sessionId]);
+  }, [sessionId, supabase]);
 
   // Toggle bill exclusion from comparison
   const toggleExcludeBill = useCallback((billId: string) => {
