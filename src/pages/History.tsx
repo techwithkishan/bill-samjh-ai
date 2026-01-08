@@ -4,14 +4,16 @@ import { useBillHistory } from '@/hooks/useBillHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare } from 'lucide-react';
+import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare, Trash2 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, BarChart, Bar } from 'recharts';
 import { format } from 'date-fns';
 import { billTypeConfig, BillType } from '@/types/bill';
+import { useToast } from '@/hooks/use-toast';
 
 const History = () => {
-  const { history, isLoading } = useBillHistory();
+  const { history, isLoading, deleteBill } = useBillHistory();
+  const { toast } = useToast();
 
   const chartData = [...history]
     .reverse()
@@ -221,7 +223,7 @@ const History = () => {
                   <CardTitle>Analysis History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
@@ -230,6 +232,7 @@ const History = () => {
                           <th className="text-right py-3 px-2">Amount</th>
                           <th className="text-right py-3 px-2">Change</th>
                           <th className="text-right py-3 px-2">Analyzed On</th>
+                          <th className="text-right py-3 px-2">Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -256,6 +259,30 @@ const History = () => {
                               </td>
                               <td className="text-right py-3 px-2 text-muted-foreground">
                                 {format(new Date(record.created_at), 'dd MMM yyyy')}
+                              </td>
+                              <td className="text-right py-3 px-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={async () => {
+                                    const deleted = await deleteBill(record.id);
+                                    if (deleted) {
+                                      toast({
+                                        title: 'Bill Deleted',
+                                        description: 'The bill has been removed from your history.',
+                                      });
+                                    } else {
+                                      toast({
+                                        title: 'Delete Failed',
+                                        description: 'Could not delete the bill. Please try again.',
+                                        variant: 'destructive',
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </td>
                             </tr>
                           );

@@ -5,19 +5,32 @@ import FileUpload from '@/components/upload/FileUpload';
 import LanguageSelector from '@/components/insights/LanguageSelector';
 import { Upload as UploadIcon, Zap, Droplets, Smartphone, Wifi } from 'lucide-react';
 import { useBillAnalysis } from '@/hooks/useBillAnalysis';
+import { useBillHistory } from '@/hooks/useBillHistory';
 import { SupportedLanguage, BillType, billTypeConfig } from '@/types/bill';
+import { useToast } from '@/hooks/use-toast';
 
 const Upload = () => {
   const navigate = useNavigate();
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('english');
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const { isProcessing, analyzeBill } = useBillAnalysis();
+  const { saveBillAnalysis } = useBillHistory();
+  const { toast } = useToast();
 
   const handleFileSelect = async (file: File, billType: BillType) => {
     setCurrentFile(file);
     const result = await analyzeBill(file, selectedLanguage, billType);
     
     if (result) {
+      // Auto-save to history
+      const saved = await saveBillAnalysis(result);
+      if (saved) {
+        toast({
+          title: 'Bill Saved',
+          description: 'Your bill has been saved to history.',
+        });
+      }
+
       // Store insights and file in sessionStorage for the insights page
       sessionStorage.setItem('billInsights', JSON.stringify(result));
       sessionStorage.setItem('selectedLanguage', selectedLanguage);
