@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionId } from './useSessionId';
 import { BillInsights, SavingsTip, BillType } from '@/types/bill';
@@ -21,29 +21,29 @@ export const useBillHistory = () => {
   const [history, setHistory] = useState<BillHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchHistory = useCallback(async () => {
     if (!sessionId) return;
+    
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('bill_analyses')
+      .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .setHeader('x-session-id', sessionId);
 
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('bill_analyses')
-        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .setHeader('x-session-id', sessionId);
-
-      if (!error && data) {
-        setHistory(data);
-      }
-      setIsLoading(false);
-    };
-
-    fetchHistory();
+    if (!error && data) {
+      setHistory(data);
+    }
+    setIsLoading(false);
   }, [sessionId]);
 
-  const saveBillAnalysis = async (insights: BillInsights) => {
-    if (!sessionId) return;
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const saveBillAnalysis = useCallback(async (insights: BillInsights): Promise<boolean> => {
+    if (!sessionId) return false;
 
     const billType = insights.billData.billType || 'electricity';
 
@@ -72,16 +72,13 @@ export const useBillHistory = () => {
 
     if (!error) {
       // Refresh history
-      const { data } = await supabase
-        .from('bill_analyses')
-        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .setHeader('x-session-id', sessionId);
-
-      if (data) setHistory(data);
+      await fetchHistory();
+      return true;
     }
-  };
+    
+    console.error('Error saving bill analysis:', error);
+    return false;
+  }, [sessionId, fetchHistory]);
 
   return { history, isLoading, saveBillAnalysis, sessionId };
 };

@@ -40,9 +40,10 @@ const Insights = () => {
       }
       // Auto-save to history if not already saved
       if (!alreadySaved) {
-        saveBillAnalysis(parsedInsights);
-        sessionStorage.setItem('billSaved', 'true');
-        setHasSaved(true);
+        saveBillAnalysis(parsedInsights).then(() => {
+          sessionStorage.setItem('billSaved', 'true');
+          setHasSaved(true);
+        });
       }
     } else {
       // Use mock data if no real data
@@ -50,7 +51,7 @@ const Insights = () => {
     }
 
     setHasStoredFile(!!storedFile);
-  }, []);
+  }, [saveBillAnalysis]);
 
   const handleLanguageChange = async (newLanguage: SupportedLanguage) => {
     const storedBase64 = sessionStorage.getItem('uploadedBillBase64');
