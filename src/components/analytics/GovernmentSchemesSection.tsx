@@ -92,9 +92,17 @@ const SchemeCard = ({ scheme, isApplicable }: SchemeCardProps) => {
         {/* Description */}
         <p className="text-sm text-muted-foreground mb-3">{scheme.description}</p>
 
-        {/* Benefits */}
+        {/* Benefits - Point wise */}
         <div className="p-3 rounded-lg bg-secondary/50 mb-3">
-          <p className="text-sm font-medium text-foreground">{scheme.benefits}</p>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Key Benefits</h4>
+          <ul className="space-y-1.5">
+            {scheme.benefits.split(/[.•]/).filter(b => b.trim()).map((benefit, index) => (
+              <li key={index} className="text-sm text-foreground flex items-start gap-2">
+                <span className="text-primary mt-0.5">•</span>
+                <span>{benefit.trim()}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* States & Deadline */}

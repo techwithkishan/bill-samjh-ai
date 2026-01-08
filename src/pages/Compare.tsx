@@ -1,140 +1,79 @@
 /**
  * Bill Comparison Page
- * Main page for comparing utility bills across months with bill type filtering
+ * Allows users to upload and compare two bills side by side
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, GitCompare, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, GitCompare, ArrowRight, RotateCcw } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { BillSelector, MultiBillSelector, BillTypeFilter } from '@/components/comparison/BillSelector';
-import { ComparisonTable } from '@/components/comparison/ComparisonTable';
-import { InsightsPanel } from '@/components/comparison/InsightsPanel';
-import { useBillComparison } from '@/hooks/useBillComparison';
-import { useToast } from '@/hooks/use-toast';
-import { billTypeConfig, BillType } from '@/types/bill';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import CompareUploadCard from '@/components/comparison/CompareUploadCard';
+import { useBillAnalysis } from '@/hooks/useBillAnalysis';
+import { BillInsights, BillType } from '@/types/bill';
+
+interface AnalyzedBillData {
+  insights: BillInsights;
+  month: string;
+  year: string;
+}
 
 const Compare = () => {
-  const { toast } = useToast();
-  const { bills, isLoading, comparison, compareBills, clearComparison, deleteBill, excludedBills } = useBillComparison();
+  const { analyzeBill, isProcessing } = useBillAnalysis();
   
-  const [currentBillId, setCurrentBillId] = useState<string>('');
-  const [comparisonBillIds, setComparisonBillIds] = useState<string[]>([]);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [billToDelete, setBillToDelete] = useState<string | null>(null);
-  const [billTypeFilter, setBillTypeFilter] = useState<string>('all');
+  const [bill1, setBill1] = useState<AnalyzedBillData | null>(null);
+  const [bill2, setBill2] = useState<AnalyzedBillData | null>(null);
+  const [activeAnalysis, setActiveAnalysis] = useState<1 | 2 | null>(null);
 
-  // Filter out excluded bills
-  const availableBills = bills.filter(b => !excludedBills.has(b.id));
-
-  // Get bill type counts
-  const billTypeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    availableBills.forEach(bill => {
-      const type = bill.bill_type || 'electricity';
-      counts[type] = (counts[type] || 0) + 1;
-    });
-    return counts;
-  }, [availableBills]);
-
-  const handleCompare = () => {
-    if (!currentBillId) {
-      toast({
-        title: 'Select a bill',
-        description: 'Please select the bill you want to compare.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (comparisonBillIds.length === 0) {
-      toast({
-        title: 'Select comparison months',
-        description: 'Please select at least one previous month to compare with.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    compareBills(currentBillId, comparisonBillIds);
+  const handleAnalyze1 = async (file: File, billType: BillType) => {
+    setActiveAnalysis(1);
+    const result = await analyzeBill(file, 'english', billType);
+    setActiveAnalysis(null);
+    return result;
   };
 
-  const handleClear = () => {
-    setCurrentBillId('');
-    setComparisonBillIds([]);
-    clearComparison();
+  const handleAnalyze2 = async (file: File, billType: BillType) => {
+    setActiveAnalysis(2);
+    const result = await analyzeBill(file, 'english', billType);
+    setActiveAnalysis(null);
+    return result;
   };
 
-  const handleBillTypeChange = (newType: string) => {
-    setBillTypeFilter(newType);
-    // Clear selections when changing bill type filter
-    setCurrentBillId('');
-    setComparisonBillIds([]);
-    clearComparison();
+  const handleBill1Analyzed = (insights: BillInsights, month: string, year: string) => {
+    setBill1({ insights, month, year });
   };
 
-  const handleDeleteBill = async () => {
-    if (!billToDelete) return;
-    
-    const success = await deleteBill(billToDelete);
-    if (success) {
-      toast({
-        title: 'Bill deleted',
-        description: 'The bill has been removed from your history.',
-      });
-      if (currentBillId === billToDelete) {
-        setCurrentBillId('');
-      }
-      setComparisonBillIds(prev => prev.filter(id => id !== billToDelete));
-      clearComparison();
-    } else {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete the bill. Please try again.',
-        variant: 'destructive',
-      });
-    }
-    setBillToDelete(null);
-    setDeleteDialogOpen(false);
+  const handleBill2Analyzed = (insights: BillInsights, month: string, year: string) => {
+    setBill2({ insights, month, year });
   };
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-12">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const handleReset = () => {
+    setBill1(null);
+    setBill2(null);
+  };
+
+  const canCompare = bill1 && bill2;
+
+  // Calculate differences
+  const getDiff = (val1: number, val2: number) => {
+    const diff = val1 - val2;
+    const percent = val2 !== 0 ? ((diff / val2) * 100).toFixed(1) : '0';
+    return { diff, percent };
+  };
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 md:py-12">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="max-w-5xl mx-auto space-y-8">
           {/* Header */}
           <div>
             <Link 
-              to="/history" 
+              to="/analytics" 
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to History
+              Back to Analytics
             </Link>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -143,205 +82,220 @@ const Compare = () => {
                   Compare Bills
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Compare your utility bills across months to track changes and spot anomalies.
+                  Upload two bills to compare them side by side
                 </p>
               </div>
-              {/* Bill Type Summary */}
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(billTypeCounts).map(([type, count]) => {
-                  const config = billTypeConfig[type as BillType];
-                  return (
-                    <Badge key={type} variant="secondary" className="text-xs">
-                      {config?.icon} {config?.label}: {count}
-                    </Badge>
-                  );
-                })}
-              </div>
+              {(bill1 || bill2) && (
+                <Button variant="outline" onClick={handleReset}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Start Over
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* No Bills State */}
-          {availableBills.length < 2 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <GitCompare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">
-                  {availableBills.length === 0 ? 'No Bills Yet' : 'Need More Bills'}
-                </h3>
-                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                  {availableBills.length === 0 
-                    ? "Upload your utility bills to start tracking and comparing them."
-                    : "You need at least 2 bills to compare. Upload another bill to enable comparison."
-                  }
+          {/* Upload Section */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <CompareUploadCard
+              title="Bill 1 (Base)"
+              billNumber={1}
+              onBillAnalyzed={handleBill1Analyzed}
+              isProcessing={activeAnalysis === 1}
+              onAnalyze={handleAnalyze1}
+              analyzedBill={bill1?.insights || null}
+            />
+            
+            <CompareUploadCard
+              title="Bill 2 (Compare To)"
+              billNumber={2}
+              onBillAnalyzed={handleBill2Analyzed}
+              isProcessing={activeAnalysis === 2}
+              onAnalyze={handleAnalyze2}
+              analyzedBill={bill2?.insights || null}
+            />
+          </div>
+
+          {/* Comparison Results */}
+          {canCompare && (
+            <Card className="animate-in fade-in-50 duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitCompare className="h-5 w-5 text-primary" />
+                  Comparison Results
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {bill1.month} {bill1.year} vs {bill2.month} {bill2.year}
                 </p>
-                <Button asChild>
-                  <Link to="/upload">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload a Bill
-                  </Link>
-                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Comparison Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Metric</th>
+                          <th className="text-right py-3 px-4 text-sm font-medium text-primary">
+                            {bill1.month} {bill1.year}
+                          </th>
+                          <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
+                            {bill2.month} {bill2.year}
+                          </th>
+                          <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Difference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Total Units */}
+                        <tr className="border-b">
+                          <td className="py-3 px-4 text-sm font-medium">Usage Units</td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            {bill1.insights.billData.totalUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {bill2.insights.billData.totalUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {(() => {
+                              const { diff, percent } = getDiff(
+                                bill1.insights.billData.totalUnits,
+                                bill2.insights.billData.totalUnits
+                              );
+                              return (
+                                <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
+                                  {diff > 0 ? '+' : ''}{diff} ({percent}%)
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+
+                        {/* Total Amount */}
+                        <tr className="border-b">
+                          <td className="py-3 px-4 text-sm font-medium">Total Amount</td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            ₹{bill1.insights.billData.totalAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            ₹{bill2.insights.billData.totalAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {(() => {
+                              const { diff, percent } = getDiff(
+                                bill1.insights.billData.totalAmount,
+                                bill2.insights.billData.totalAmount
+                              );
+                              return (
+                                <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
+                                  {diff > 0 ? '+' : ''}₹{diff.toLocaleString()} ({percent}%)
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+
+                        {/* Previous Units */}
+                        <tr className="border-b">
+                          <td className="py-3 px-4 text-sm font-medium">Previous Units</td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            {bill1.insights.billData.previousUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {bill2.insights.billData.previousUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {(() => {
+                              const { diff, percent } = getDiff(
+                                bill1.insights.billData.previousUnits,
+                                bill2.insights.billData.previousUnits
+                              );
+                              return (
+                                <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
+                                  {diff > 0 ? '+' : ''}{diff} ({percent}%)
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+
+                        {/* Previous Amount */}
+                        <tr className="border-b">
+                          <td className="py-3 px-4 text-sm font-medium">Previous Amount</td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            ₹{bill1.insights.billData.previousAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            ₹{bill2.insights.billData.previousAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm">
+                            {(() => {
+                              const { diff, percent } = getDiff(
+                                bill1.insights.billData.previousAmount,
+                                bill2.insights.billData.previousAmount
+                              );
+                              return (
+                                <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
+                                  {diff > 0 ? '+' : ''}₹{diff.toLocaleString()} ({percent}%)
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Quick Insights */}
+                  <div className="grid md:grid-cols-2 gap-4 mt-6">
+                    <div className="p-4 rounded-lg bg-secondary/50">
+                      <h4 className="text-sm font-semibold mb-2">Bill 1 Summary</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {bill1.insights.aiExplanation.summary || 'No AI summary available.'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-secondary/50">
+                      <h4 className="text-sm font-semibold mb-2">Bill 2 Summary</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {bill2.insights.aiExplanation.summary || 'No AI summary available.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Overall Assessment */}
+                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 mt-4">
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                      Overall Assessment
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {(() => {
+                        const amountDiff = bill1.insights.billData.totalAmount - bill2.insights.billData.totalAmount;
+                        const unitsDiff = bill1.insights.billData.totalUnits - bill2.insights.billData.totalUnits;
+                        
+                        if (amountDiff > 0 && unitsDiff > 0) {
+                          return `Your ${bill1.month} bill is ₹${amountDiff.toLocaleString()} higher than ${bill2.month}, with ${unitsDiff} more units consumed. Consider reviewing your usage patterns.`;
+                        } else if (amountDiff < 0 && unitsDiff < 0) {
+                          return `Great news! Your ${bill1.month} bill is ₹${Math.abs(amountDiff).toLocaleString()} lower than ${bill2.month}, with ${Math.abs(unitsDiff)} fewer units consumed. Keep up the good work!`;
+                        } else if (amountDiff > 0 && unitsDiff <= 0) {
+                          return `Your ${bill1.month} bill is ₹${amountDiff.toLocaleString()} higher despite using similar or fewer units. Check for rate changes or additional charges.`;
+                        } else {
+                          return `Your bills show a mixed pattern. ${bill1.month} has ${unitsDiff > 0 ? 'higher' : 'lower'} usage but ${amountDiff > 0 ? 'higher' : 'lower'} charges compared to ${bill2.month}.`;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          ) : (
-            <>
-              {/* Bill Selection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Select Bills to Compare</CardTitle>
-                  <CardDescription>
-                    Filter by bill type and choose bills to compare (same type recommended)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Bill Type Filter */}
-                  <BillTypeFilter 
-                    value={billTypeFilter} 
-                    onChange={handleBillTypeChange}
-                    bills={availableBills}
-                  />
+          )}
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <BillSelector
-                      bills={availableBills}
-                      selectedId={currentBillId}
-                      onChange={(id) => {
-                        setCurrentBillId(id);
-                        setComparisonBillIds(prev => prev.filter(cid => cid !== id));
-                      }}
-                      excludeIds={comparisonBillIds}
-                      label="Which bill do you want to compare?"
-                      placeholder="Select your current bill"
-                      billTypeFilter={billTypeFilter}
-                    />
-
-                    <MultiBillSelector
-                      bills={availableBills}
-                      selectedIds={comparisonBillIds}
-                      onChange={setComparisonBillIds}
-                      excludeIds={currentBillId ? [currentBillId] : []}
-                      label="Select past months to compare with"
-                      maxSelections={3}
-                      billTypeFilter={billTypeFilter}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button 
-                      onClick={handleCompare}
-                      disabled={!currentBillId || comparisonBillIds.length === 0}
-                    >
-                      <GitCompare className="h-4 w-4 mr-2" />
-                      Compare Bills
-                    </Button>
-                    {(currentBillId || comparisonBillIds.length > 0) && (
-                      <Button variant="outline" onClick={handleClear}>
-                        Clear Selection
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Comparison Results */}
-              {comparison && (
-                <div className="space-y-6 animate-in fade-in-50 duration-300">
-                  {/* Comparison Table */}
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-lg">Comparison Results</CardTitle>
-                          <CardDescription>
-                            Comparing {comparison.current.billing_month} with {comparison.comparisons.map(c => c.billing_month).join(', ')}
-                          </CardDescription>
-                        </div>
-                        <Badge variant="secondary">
-                          {billTypeConfig[comparison.current.bill_type as BillType]?.icon}{' '}
-                          {billTypeConfig[comparison.current.bill_type as BillType]?.label}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <ComparisonTable comparison={comparison} />
-                    </CardContent>
-                  </Card>
-
-                  {/* Insights */}
-                  <InsightsPanel 
-                    insights={comparison.insights} 
-                    anomalies={comparison.anomalies} 
-                  />
-                </div>
-              )}
-
-              {/* Bill List (for deletion) */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Manage Your Bills</CardTitle>
-                  <CardDescription>
-                    View all your uploaded bills or remove ones you no longer need
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y">
-                    {availableBills.map((bill) => {
-                      const config = billTypeConfig[bill.bill_type as BillType];
-                      return (
-                        <div key={bill.id} className="flex items-center justify-between py-3">
-                          <div className="flex items-center gap-4">
-                            <span className="text-xl">{config?.icon || '📄'}</span>
-                            <div>
-                              <p className="font-medium">{bill.billing_month}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {bill.total_units} {config?.unit || 'units'} • ₹{bill.total_amount.toLocaleString()}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {config?.label || bill.bill_type}
-                            </Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              setBillToDelete(bill.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+          {/* Help Text */}
+          {!canCompare && (
+            <div className="text-center text-sm text-muted-foreground p-4 rounded-lg bg-muted/50">
+              Upload both bills with month/year selection to see the comparison results.
+            </div>
           )}
         </div>
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this bill?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove this bill from your history. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteBill}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 };
