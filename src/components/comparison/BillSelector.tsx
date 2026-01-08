@@ -1,11 +1,12 @@
 /**
  * Bill Selector Component
- * Dropdown selectors for choosing bills to compare
+ * Dropdown selectors for choosing bills to compare with bill type filtering
  */
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { BillRecord } from '@/types/comparison';
+import { BillType, billTypeConfig } from '@/types/bill';
 import { format } from 'date-fns';
 
 interface BillSelectorProps {
@@ -15,7 +16,18 @@ interface BillSelectorProps {
   excludeIds?: string[];
   label: string;
   placeholder?: string;
+  billTypeFilter?: string;
 }
+
+const getBillTypeEmoji = (billType: string): string => {
+  const type = billType as BillType;
+  return billTypeConfig[type]?.icon || '📄';
+};
+
+const getBillTypeUnit = (billType: string): string => {
+  const type = billType as BillType;
+  return billTypeConfig[type]?.unit || 'units';
+};
 
 export const BillSelector = ({
   bills,
@@ -24,8 +36,14 @@ export const BillSelector = ({
   excludeIds = [],
   label,
   placeholder = 'Select a bill',
+  billTypeFilter,
 }: BillSelectorProps) => {
-  const availableBills = bills.filter(b => !excludeIds.includes(b.id));
+  let availableBills = bills.filter(b => !excludeIds.includes(b.id));
+  
+  // Filter by bill type if specified
+  if (billTypeFilter && billTypeFilter !== 'all') {
+    availableBills = availableBills.filter(b => b.bill_type === billTypeFilter);
+  }
 
   return (
     <div className="space-y-2">
@@ -43,6 +61,7 @@ export const BillSelector = ({
             availableBills.map((bill) => (
               <SelectItem key={bill.id} value={bill.id}>
                 <div className="flex items-center gap-2">
+                  <span>{getBillTypeEmoji(bill.bill_type)}</span>
                   <span className="font-medium">{bill.billing_month}</span>
                   <Badge variant="outline" className="text-xs">
                     ₹{bill.total_amount.toLocaleString()}
@@ -67,6 +86,7 @@ interface MultiBillSelectorProps {
   excludeIds?: string[];
   label: string;
   maxSelections?: number;
+  billTypeFilter?: string;
 }
 
 export const MultiBillSelector = ({
@@ -76,8 +96,14 @@ export const MultiBillSelector = ({
   excludeIds = [],
   label,
   maxSelections = 3,
+  billTypeFilter,
 }: MultiBillSelectorProps) => {
-  const availableBills = bills.filter(b => !excludeIds.includes(b.id));
+  let availableBills = bills.filter(b => !excludeIds.includes(b.id));
+  
+  // Filter by bill type if specified
+  if (billTypeFilter && billTypeFilter !== 'all') {
+    availableBills = availableBills.filter(b => b.bill_type === billTypeFilter);
+  }
 
   const handleToggle = (billId: string) => {
     if (selectedIds.includes(billId)) {
@@ -126,6 +152,7 @@ export const MultiBillSelector = ({
                       </svg>
                     )}
                   </div>
+                  <span>{getBillTypeEmoji(bill.bill_type)}</span>
                   <span className="font-medium text-sm">{bill.billing_month}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -133,7 +160,7 @@ export const MultiBillSelector = ({
                     ₹{bill.total_amount.toLocaleString()}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {bill.total_units} kWh
+                    {bill.total_units} {getBillTypeUnit(bill.bill_type)}
                   </span>
                 </div>
               </button>
@@ -146,6 +173,49 @@ export const MultiBillSelector = ({
           {selectedIds.length} of {maxSelections} selected
         </p>
       )}
+    </div>
+  );
+};
+
+interface BillTypeFilterProps {
+  value: string;
+  onChange: (value: string) => void;
+  bills: BillRecord[];
+}
+
+export const BillTypeFilter = ({ value, onChange, bills }: BillTypeFilterProps) => {
+  // Get unique bill types from the bills
+  const billTypes = [...new Set(bills.map(b => b.bill_type))];
+  
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-foreground">Filter by Bill Type</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="All bill types" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">
+            <span className="flex items-center gap-2">
+              📊 All Bill Types
+            </span>
+          </SelectItem>
+          {billTypes.map((type) => {
+            const config = billTypeConfig[type as BillType];
+            const count = bills.filter(b => b.bill_type === type).length;
+            return (
+              <SelectItem key={type} value={type}>
+                <span className="flex items-center gap-2">
+                  {config?.icon || '📄'} {config?.label || type}
+                  <Badge variant="secondary" className="text-xs ml-1">
+                    {count}
+                  </Badge>
+                </span>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

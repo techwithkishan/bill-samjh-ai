@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import FileUpload from '@/components/upload/FileUpload';
 import LanguageSelector from '@/components/insights/LanguageSelector';
-import { Upload as UploadIcon } from 'lucide-react';
+import { Upload as UploadIcon, Zap, Droplets, Smartphone, Wifi } from 'lucide-react';
 import { useBillAnalysis } from '@/hooks/useBillAnalysis';
-import { SupportedLanguage } from '@/types/bill';
+import { SupportedLanguage, BillType, billTypeConfig } from '@/types/bill';
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -13,14 +13,15 @@ const Upload = () => {
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const { isProcessing, analyzeBill } = useBillAnalysis();
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = async (file: File, billType: BillType) => {
     setCurrentFile(file);
-    const result = await analyzeBill(file, selectedLanguage);
+    const result = await analyzeBill(file, selectedLanguage, billType);
     
     if (result) {
       // Store insights and file in sessionStorage for the insights page
       sessionStorage.setItem('billInsights', JSON.stringify(result));
       sessionStorage.setItem('selectedLanguage', selectedLanguage);
+      sessionStorage.setItem('selectedBillType', billType);
       
       // Store the file as base64 for re-analysis with different language
       const reader = new FileReader();
@@ -43,12 +44,22 @@ const Upload = () => {
               <UploadIcon className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Upload Your Electricity Bill
+              Upload Your Utility Bill
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-6">
-              Upload a clear photo or PDF of your electricity bill. 
+              Upload a clear photo or PDF of your utility bill. 
               Our AI will analyze it and explain everything in simple language.
             </p>
+
+            {/* Bill Types Preview */}
+            <div className="flex justify-center gap-4 mb-6">
+              {(Object.keys(billTypeConfig) as BillType[]).map((type) => (
+                <div key={type} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span>{billTypeConfig[type].icon}</span>
+                  <span>{billTypeConfig[type].label}</span>
+                </div>
+              ))}
+            </div>
 
             {/* Language Selector */}
             <div className="flex justify-center mb-8">
@@ -82,20 +93,25 @@ const Upload = () => {
             </div>
           )}
 
-          {/* Supported Bills */}
-          <div className="mt-16 text-center">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              Supported Electricity Boards
-            </h3>
-            <div className="flex flex-wrap justify-center gap-3 text-sm text-muted-foreground">
-              {['MSEDCL', 'TPDDL', 'BSES', 'CESC', 'TANGEDCO', 'BESCOM', 'APSPDCL', 'UPPCL', 'PGVCL', 'WBSEDCL'].map((board) => (
-                <span key={board} className="px-4 py-2 rounded-full bg-muted">
-                  {board}
-                </span>
-              ))}
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              And all other state electricity boards across India
+          {/* Supported Providers */}
+          <div className="mt-16 space-y-8">
+            {(Object.keys(billTypeConfig) as BillType[]).map((type) => (
+              <div key={type} className="text-center">
+                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center justify-center gap-2">
+                  <span className="text-xl">{billTypeConfig[type].icon}</span>
+                  Supported {billTypeConfig[type].label} Providers
+                </h3>
+                <div className="flex flex-wrap justify-center gap-3 text-sm text-muted-foreground">
+                  {billTypeConfig[type].providers.map((provider) => (
+                    <span key={provider} className="px-4 py-2 rounded-full bg-muted">
+                      {provider}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="text-sm text-muted-foreground text-center">
+              And many more service providers across India
             </p>
           </div>
         </div>

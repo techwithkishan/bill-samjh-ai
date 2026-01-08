@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { BillInsights, SupportedLanguage } from '@/types/bill';
+import { BillInsights, SupportedLanguage, BillType } from '@/types/bill';
 import { useToast } from '@/hooks/use-toast';
 
 export const useBillAnalysis = () => {
@@ -18,7 +18,11 @@ export const useBillAnalysis = () => {
     });
   };
 
-  const analyzeBill = async (file: File, language: SupportedLanguage = 'english') => {
+  const analyzeBill = async (
+    file: File, 
+    language: SupportedLanguage = 'english',
+    billType: BillType = 'electricity'
+  ) => {
     setIsProcessing(true);
     setError(null);
 
@@ -26,7 +30,7 @@ export const useBillAnalysis = () => {
       const base64 = await fileToBase64(file);
       
       const { data, error: functionError } = await supabase.functions.invoke('analyze-bill', {
-        body: { imageBase64: base64, language }
+        body: { imageBase64: base64, language, billType }
       });
 
       if (functionError) {
@@ -35,6 +39,11 @@ export const useBillAnalysis = () => {
 
       if (data.error) {
         throw new Error(data.error);
+      }
+
+      // Ensure billType is set in the response
+      if (data.billData) {
+        data.billData.billType = billType;
       }
 
       setInsights(data as BillInsights);
@@ -53,8 +62,12 @@ export const useBillAnalysis = () => {
     }
   };
 
-  const reanalyzeWithLanguage = async (file: File, language: SupportedLanguage) => {
-    return analyzeBill(file, language);
+  const reanalyzeWithLanguage = async (
+    file: File, 
+    language: SupportedLanguage,
+    billType: BillType = 'electricity'
+  ) => {
+    return analyzeBill(file, language, billType);
   };
 
   return {

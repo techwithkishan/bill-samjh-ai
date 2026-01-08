@@ -2,6 +2,7 @@ import { BillInsights } from "@/types/bill";
 
 export const mockBillInsights: BillInsights = {
   billData: {
+    billType: "electricity",
     billingMonth: "December 2024",
     totalUnits: 485,
     totalAmount: 3842,

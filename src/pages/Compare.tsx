@@ -1,19 +1,21 @@
 /**
  * Bill Comparison Page
- * Main page for comparing electricity bills across months
+ * Main page for comparing utility bills across months with bill type filtering
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, GitCompare, Upload, Trash2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BillSelector, MultiBillSelector } from '@/components/comparison/BillSelector';
+import { Badge } from '@/components/ui/badge';
+import { BillSelector, MultiBillSelector, BillTypeFilter } from '@/components/comparison/BillSelector';
 import { ComparisonTable } from '@/components/comparison/ComparisonTable';
 import { InsightsPanel } from '@/components/comparison/InsightsPanel';
 import { useBillComparison } from '@/hooks/useBillComparison';
 import { useToast } from '@/hooks/use-toast';
+import { billTypeConfig, BillType } from '@/types/bill';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,9 +35,20 @@ const Compare = () => {
   const [comparisonBillIds, setComparisonBillIds] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState<string | null>(null);
+  const [billTypeFilter, setBillTypeFilter] = useState<string>('all');
 
   // Filter out excluded bills
   const availableBills = bills.filter(b => !excludedBills.has(b.id));
+
+  // Get bill type counts
+  const billTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    availableBills.forEach(bill => {
+      const type = bill.bill_type || 'electricity';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [availableBills]);
 
   const handleCompare = () => {
     if (!currentBillId) {
@@ -65,6 +78,14 @@ const Compare = () => {
     clearComparison();
   };
 
+  const handleBillTypeChange = (newType: string) => {
+    setBillTypeFilter(newType);
+    // Clear selections when changing bill type filter
+    setCurrentBillId('');
+    setComparisonBillIds([]);
+    clearComparison();
+  };
+
   const handleDeleteBill = async () => {
     if (!billToDelete) return;
     
@@ -74,7 +95,6 @@ const Compare = () => {
         title: 'Bill deleted',
         description: 'The bill has been removed from your history.',
       });
-      // Clear selection if deleted bill was selected
       if (currentBillId === billToDelete) {
         setCurrentBillId('');
       }
@@ -123,8 +143,19 @@ const Compare = () => {
                   Compare Bills
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Compare your bills across months to track changes and spot anomalies.
+                  Compare your utility bills across months to track changes and spot anomalies.
                 </p>
+              </div>
+              {/* Bill Type Summary */}
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(billTypeCounts).map(([type, count]) => {
+                  const config = billTypeConfig[type as BillType];
+                  return (
+                    <Badge key={type} variant="secondary" className="text-xs">
+                      {config?.icon} {config?.label}: {count}
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -139,7 +170,7 @@ const Compare = () => {
                 </h3>
                 <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                   {availableBills.length === 0 
-                    ? "Upload your electricity bills to start tracking and comparing them."
+                    ? "Upload your utility bills to start tracking and comparing them."
                     : "You need at least 2 bills to compare. Upload another bill to enable comparison."
                   }
                 </p>
@@ -158,22 +189,29 @@ const Compare = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">Select Bills to Compare</CardTitle>
                   <CardDescription>
-                    Choose your current bill and up to 3 previous months to compare
+                    Filter by bill type and choose bills to compare (same type recommended)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Bill Type Filter */}
+                  <BillTypeFilter 
+                    value={billTypeFilter} 
+                    onChange={handleBillTypeChange}
+                    bills={availableBills}
+                  />
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <BillSelector
                       bills={availableBills}
                       selectedId={currentBillId}
                       onChange={(id) => {
                         setCurrentBillId(id);
-                        // Remove from comparison if selected as current
                         setComparisonBillIds(prev => prev.filter(cid => cid !== id));
                       }}
                       excludeIds={comparisonBillIds}
                       label="Which bill do you want to compare?"
                       placeholder="Select your current bill"
+                      billTypeFilter={billTypeFilter}
                     />
 
                     <MultiBillSelector
@@ -183,6 +221,7 @@ const Compare = () => {
                       excludeIds={currentBillId ? [currentBillId] : []}
                       label="Select past months to compare with"
                       maxSelections={3}
+                      billTypeFilter={billTypeFilter}
                     />
                   </div>
 
@@ -209,10 +248,18 @@ const Compare = () => {
                   {/* Comparison Table */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Comparison Results</CardTitle>
-                      <CardDescription>
-                        Comparing {comparison.current.billing_month} with {comparison.comparisons.map(c => c.billing_month).join(', ')}
-                      </CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">Comparison Results</CardTitle>
+                          <CardDescription>
+                            Comparing {comparison.current.billing_month} with {comparison.comparisons.map(c => c.billing_month).join(', ')}
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary">
+                          {billTypeConfig[comparison.current.bill_type as BillType]?.icon}{' '}
+                          {billTypeConfig[comparison.current.bill_type as BillType]?.label}
+                        </Badge>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <ComparisonTable comparison={comparison} />
@@ -237,29 +284,36 @@ const Compare = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="divide-y">
-                    {availableBills.map((bill) => (
-                      <div key={bill.id} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="font-medium">{bill.billing_month}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {bill.total_units} kWh • ₹{bill.total_amount.toLocaleString()}
-                            </p>
+                    {availableBills.map((bill) => {
+                      const config = billTypeConfig[bill.bill_type as BillType];
+                      return (
+                        <div key={bill.id} className="flex items-center justify-between py-3">
+                          <div className="flex items-center gap-4">
+                            <span className="text-xl">{config?.icon || '📄'}</span>
+                            <div>
+                              <p className="font-medium">{bill.billing_month}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {bill.total_units} {config?.unit || 'units'} • ₹{bill.total_amount.toLocaleString()}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {config?.label || bill.bill_type}
+                            </Badge>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              setBillToDelete(bill.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            setBillToDelete(bill.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
