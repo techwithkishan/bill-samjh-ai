@@ -13,10 +13,10 @@ import { cn } from '@/lib/utils';
 interface SimpleUploadCardProps {
   title: string;
   billNumber: 1 | 2;
-  onBillAnalyzed: (insights: BillInsights) => void;
+  onFileSelected: (file: File, billType: BillType) => void;
   isProcessing: boolean;
-  onAnalyze: (file: File, billType: BillType) => Promise<BillInsights | null>;
   analyzedBill: BillInsights | null;
+  selectedFile: File | null;
 }
 
 const billTypeIcons: Record<BillType, React.ReactNode> = {
@@ -29,16 +29,18 @@ const billTypeIcons: Record<BillType, React.ReactNode> = {
 const SimpleUploadCard = ({ 
   title, 
   billNumber, 
-  onBillAnalyzed, 
+  onFileSelected, 
   isProcessing, 
-  onAnalyze,
-  analyzedBill 
+  analyzedBill,
+  selectedFile: externalSelectedFile
 }: SimpleUploadCardProps) => {
   const [dragActive, setDragActive] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [localFile, setLocalFile] = useState<File | null>(null);
   const [selectedBillType, setSelectedBillType] = useState<BillType>('electricity');
   const [error, setError] = useState<string | null>(null);
-  const [isAnalyzed, setIsAnalyzed] = useState(false);
+  
+  const selectedFile = externalSelectedFile || localFile;
+  const isAnalyzed = !!analyzedBill;
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -76,36 +78,25 @@ const SimpleUploadCard = ({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (validateFile(file)) {
-        setSelectedFile(file);
-        setIsAnalyzed(false);
+        setLocalFile(file);
+        onFileSelected(file, selectedBillType);
       }
     }
-  }, []);
+  }, [onFileSelected, selectedBillType]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (validateFile(file)) {
-        setSelectedFile(file);
-        setIsAnalyzed(false);
+        setLocalFile(file);
+        onFileSelected(file, selectedBillType);
       }
     }
   };
 
   const handleRemoveFile = () => {
-    setSelectedFile(null);
+    setLocalFile(null);
     setError(null);
-    setIsAnalyzed(false);
-  };
-
-  const handleAnalyze = async () => {
-    if (!selectedFile) return;
-
-    const result = await onAnalyze(selectedFile, selectedBillType);
-    if (result) {
-      setIsAnalyzed(true);
-      onBillAnalyzed(result);
-    }
   };
 
   const getFileIcon = (type: string) => {
@@ -208,7 +199,7 @@ const SimpleUploadCard = ({
         {/* Selected File Preview */}
         {selectedFile && !isAnalyzed && (
           <div className="p-3 rounded-lg bg-secondary border border-border">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {getFileIcon(selectedFile.type)}
                 <div className="min-w-0">
@@ -226,25 +217,6 @@ const SimpleUploadCard = ({
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
-
-            <Button
-              onClick={handleAnalyze}
-              className="w-full"
-              size="sm"
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Analyze Bill
-                </>
-              )}
-            </Button>
           </div>
         )}
 

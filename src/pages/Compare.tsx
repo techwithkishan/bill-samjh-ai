@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, GitCompare, ArrowRight, RotateCcw, History } from 'lucide-react';
+import { ArrowLeft, GitCompare, ArrowRight, RotateCcw, History, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,9 @@ const Compare = () => {
   
   const [bill1, setBill1] = useState<AnalyzedBillData | null>(null);
   const [bill2, setBill2] = useState<AnalyzedBillData | null>(null);
-  const [activeAnalysis, setActiveAnalysis] = useState<1 | 2 | null>(null);
+  const [file1, setFile1] = useState<{ file: File; billType: BillType } | null>(null);
+  const [file2, setFile2] = useState<{ file: File; billType: BillType } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedHistoryBill1, setSelectedHistoryBill1] = useState<string>('');
   const [selectedHistoryBill2, setSelectedHistoryBill2] = useState<string>('');
 
@@ -81,36 +83,44 @@ const Compare = () => {
     }
   }, [selectedHistoryBill2, history]);
 
-  const handleAnalyze1 = async (file: File, billType: BillType) => {
-    setActiveAnalysis(1);
-    const result = await analyzeBill(file, 'english', billType);
-    setActiveAnalysis(null);
-    return result;
+  const handleFile1Selected = (file: File, billType: BillType) => {
+    setFile1({ file, billType });
+    setBill1(null); // Reset analyzed bill when new file selected
   };
 
-  const handleAnalyze2 = async (file: File, billType: BillType) => {
-    setActiveAnalysis(2);
-    const result = await analyzeBill(file, 'english', billType);
-    setActiveAnalysis(null);
-    return result;
+  const handleFile2Selected = (file: File, billType: BillType) => {
+    setFile2({ file, billType });
+    setBill2(null); // Reset analyzed bill when new file selected
   };
 
-  const handleBill1Analyzed = (insights: BillInsights) => {
-    setBill1({ insights });
-  };
-
-  const handleBill2Analyzed = (insights: BillInsights) => {
-    setBill2({ insights });
+  const handleAnalyzeAndCompare = async () => {
+    if (!file1 || !file2) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const [result1, result2] = await Promise.all([
+        analyzeBill(file1.file, 'english', file1.billType),
+        analyzeBill(file2.file, 'english', file2.billType),
+      ]);
+      
+      if (result1) setBill1({ insights: result1 });
+      if (result2) setBill2({ insights: result2 });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleReset = () => {
     setBill1(null);
     setBill2(null);
+    setFile1(null);
+    setFile2(null);
     setSelectedHistoryBill1('');
     setSelectedHistoryBill2('');
   };
 
   const canCompare = bill1 && bill2;
+  const canAnalyze = file1 && file2 && !canCompare;
 
   // Calculate differences
   const getDiff = (val1: number, val2: number) => {
@@ -216,25 +226,51 @@ const Compare = () => {
 
           {/* Upload Section */}
           {!selectedHistoryBill1 && !selectedHistoryBill2 && (
-            <div className="grid md:grid-cols-2 gap-6">
-              <SimpleUploadCard
-                title="Bill 1 (Base)"
-                billNumber={1}
-                onBillAnalyzed={handleBill1Analyzed}
-                isProcessing={activeAnalysis === 1}
-                onAnalyze={handleAnalyze1}
-                analyzedBill={bill1?.insights || null}
-              />
-              
-              <SimpleUploadCard
-                title="Bill 2 (Compare To)"
-                billNumber={2}
-                onBillAnalyzed={handleBill2Analyzed}
-                isProcessing={activeAnalysis === 2}
-                onAnalyze={handleAnalyze2}
-                analyzedBill={bill2?.insights || null}
-              />
-            </div>
+            <>
+              <div className="grid md:grid-cols-2 gap-6">
+                <SimpleUploadCard
+                  title="Bill 1 (Base)"
+                  billNumber={1}
+                  onFileSelected={handleFile1Selected}
+                  isProcessing={isAnalyzing}
+                  analyzedBill={bill1?.insights || null}
+                  selectedFile={file1?.file || null}
+                />
+                
+                <SimpleUploadCard
+                  title="Bill 2 (Compare To)"
+                  billNumber={2}
+                  onFileSelected={handleFile2Selected}
+                  isProcessing={isAnalyzing}
+                  analyzedBill={bill2?.insights || null}
+                  selectedFile={file2?.file || null}
+                />
+              </div>
+
+              {/* Single Analyze & Compare Button */}
+              {canAnalyze && (
+                <div className="flex justify-center">
+                  <Button 
+                    size="lg" 
+                    onClick={handleAnalyzeAndCompare}
+                    disabled={isAnalyzing}
+                    className="px-8"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        Analyzing Bills...
+                      </>
+                    ) : (
+                      <>
+                        <GitCompare className="h-5 w-5 mr-2" />
+                        Analyze & Compare
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Comparison Results */}
