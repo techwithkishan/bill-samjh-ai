@@ -11,6 +11,7 @@ import Technology from "./pages/Technology";
 import Learn from "./pages/Learn";
 import History from "./pages/History";
 import Compare from "./pages/Compare";
+import Analytics from "./pages/Analytics";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/learn" element={<Learn />} />
             <Route path="/history" element={<History />} />
             <Route path="/compare" element={<Compare />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
