@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -10,13 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { 
-  governmentSchemes, 
   indianStates, 
   getCategoryLabel, 
   getCategoryColor,
   IndianState,
   GovernmentScheme,
 } from '@/data/governmentSchemes';
+import { useGovernmentSchemes } from '@/hooks/useGovernmentSchemes';
 import { 
   Landmark, 
   MapPin, 
@@ -30,7 +31,13 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Wifi,
+  WifiOff,
+  Clock,
+  Lightbulb,
+  FileText,
 } from 'lucide-react';
+import { format } from 'date-fns';
 
 const getCategoryIcon = (category: GovernmentScheme['category']) => {
   switch (category) {
@@ -45,13 +52,12 @@ const getCategoryIcon = (category: GovernmentScheme['category']) => {
   }
 };
 
-const SchemeCard = ({ 
-  scheme, 
-  isApplicable 
-}: { 
-  scheme: GovernmentScheme; 
+interface SchemeCardProps {
+  scheme: GovernmentScheme & { applicationProcess?: string; deadline?: string };
   isApplicable: boolean;
-}) => {
+}
+
+const SchemeCard = ({ scheme, isApplicable }: SchemeCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -73,6 +79,11 @@ const SchemeCard = ({
                   Applicable to You
                 </Badge>
               )}
+              {!scheme.isActive && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  Inactive
+                </Badge>
+              )}
             </div>
             <h3 className="font-semibold text-foreground text-lg">{scheme.name}</h3>
           </div>
@@ -86,23 +97,32 @@ const SchemeCard = ({
           <p className="text-sm font-medium text-foreground">{scheme.benefits}</p>
         </div>
 
-        {/* States */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          <MapPin className="h-4 w-4" />
-          <span>
-            {scheme.applicableStates.includes('All India') 
-              ? 'Available across India' 
-              : scheme.applicableStates.join(', ')}
-          </span>
+        {/* States & Deadline */}
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4" />
+            <span>
+              {scheme.applicableStates.includes('All India') 
+                ? 'Available across India' 
+                : scheme.applicableStates.slice(0, 3).join(', ')}
+              {scheme.applicableStates.length > 3 && ` +${scheme.applicableStates.length - 3} more`}
+            </span>
+          </div>
+          {scheme.deadline && (
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              <span>{scheme.deadline}</span>
+            </div>
+          )}
         </div>
 
-        {/* Expandable Eligibility */}
+        {/* Expandable Section */}
         <div className="border-t border-border pt-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <span>Eligibility Criteria</span>
+            <span>View Details</span>
             {isExpanded ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
@@ -111,14 +131,34 @@ const SchemeCard = ({
           </button>
           
           {isExpanded && (
-            <ul className="mt-3 space-y-1.5">
-              {scheme.eligibility.map((criteria, index) => (
-                <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
-                  {criteria}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-3 space-y-4">
+              {/* Eligibility */}
+              <div>
+                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Eligibility Criteria
+                </h4>
+                <ul className="space-y-1.5">
+                  {scheme.eligibility.map((criteria, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-success mt-1">•</span>
+                      {criteria}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Application Process */}
+              {scheme.applicationProcess && (
+                <div>
+                  <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-primary" />
+                    How to Apply
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{scheme.applicationProcess}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -144,17 +184,41 @@ const SchemeCard = ({
 const GovernmentSchemesSection = () => {
   const [selectedState, setSelectedState] = useState<IndianState>('All India');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [monthlyConsumption, setMonthlyConsumption] = useState<string>('');
+  
+  const { 
+    schemes, 
+    eligibilityNotes,
+    isLoading, 
+    lastFetched, 
+    isLiveData,
+    refreshSchemes 
+  } = useGovernmentSchemes();
+
+  // Fetch schemes when state or consumption changes
+  useEffect(() => {
+    const consumption = monthlyConsumption ? parseInt(monthlyConsumption) : undefined;
+    refreshSchemes(selectedState, consumption);
+  }, [selectedState]);
+
+  const handleRefresh = () => {
+    const consumption = monthlyConsumption ? parseInt(monthlyConsumption) : undefined;
+    refreshSchemes(selectedState, consumption);
+  };
+
+  const handleConsumptionSearch = () => {
+    const consumption = monthlyConsumption ? parseInt(monthlyConsumption) : undefined;
+    refreshSchemes(selectedState, consumption);
+  };
 
   const filteredSchemes = useMemo(() => {
-    return governmentSchemes.filter((scheme) => {
-      // Category filter
+    return schemes.filter((scheme) => {
       if (categoryFilter !== 'all' && scheme.category !== categoryFilter) {
         return false;
       }
       return true;
     });
-  }, [categoryFilter]);
+  }, [schemes, categoryFilter]);
 
   const applicableSchemes = useMemo(() => {
     return filteredSchemes.filter((scheme) => 
@@ -170,12 +234,6 @@ const GovernmentSchemesSection = () => {
     );
   }, [filteredSchemes, selectedState]);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setIsRefreshing(false), 1000);
-  };
-
   return (
     <div className="space-y-6">
       {/* Section Header */}
@@ -188,24 +246,48 @@ const GovernmentSchemesSection = () => {
                 Government Electricity Schemes & Benefits
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Discover subsidies, free electricity limits, and solar schemes available in your state
+                Live updates on subsidies, free electricity limits, and solar schemes
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Live Status Indicator */}
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${isLiveData ? 'text-success border-success' : 'text-muted-foreground'}`}
+              >
+                {isLiveData ? (
+                  <>
+                    <Wifi className="h-3 w-3 mr-1" />
+                    Live Data
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3 mr-1" />
+                    Cached
+                  </>
+                )}
+              </Badge>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                {isLoading ? 'Updating...' : 'Refresh'}
+              </Button>
+            </div>
           </div>
+          {lastFetched && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Last updated: {format(new Date(lastFetched), 'dd MMM yyyy, hh:mm a')}
+            </p>
+          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">
                 Select Your State
               </label>
@@ -222,7 +304,7 @@ const GovernmentSchemesSection = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1">
+            <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">
                 Filter by Category
               </label>
@@ -239,12 +321,57 @@ const GovernmentSchemesSection = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">
+                Monthly Consumption (kWh)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="e.g. 200"
+                  value={monthlyConsumption}
+                  onChange={(e) => setMonthlyConsumption(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="secondary" 
+                  size="icon"
+                  onClick={handleConsumptionSearch}
+                  disabled={isLoading}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
+
+          {/* Eligibility Notes */}
+          {eligibilityNotes && (
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-start gap-2">
+                <Lightbulb className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Personalized Recommendation</p>
+                  <p className="text-sm text-muted-foreground">{eligibilityNotes}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
+            <p className="text-muted-foreground">Fetching latest government schemes...</p>
+          </div>
+        </div>
+      )}
+
       {/* Applicable Schemes */}
-      {applicableSchemes.length > 0 && (
+      {!isLoading && applicableSchemes.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-success" />
@@ -264,7 +391,7 @@ const GovernmentSchemesSection = () => {
       )}
 
       {/* Other Schemes */}
-      {otherSchemes.length > 0 && selectedState !== 'All India' && (
+      {!isLoading && otherSchemes.length > 0 && selectedState !== 'All India' && (
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             Other State Schemes
@@ -283,13 +410,13 @@ const GovernmentSchemesSection = () => {
       )}
 
       {/* No Results */}
-      {applicableSchemes.length === 0 && otherSchemes.length === 0 && (
+      {!isLoading && applicableSchemes.length === 0 && otherSchemes.length === 0 && (
         <Card className="text-center py-12">
           <CardContent>
             <Filter className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Schemes Found</h3>
             <p className="text-muted-foreground">
-              Try changing the category filter to see more schemes.
+              Try changing the category filter or refreshing to see more schemes.
             </p>
           </CardContent>
         </Card>
@@ -298,8 +425,9 @@ const GovernmentSchemesSection = () => {
       {/* Disclaimer */}
       <div className="p-4 rounded-lg bg-muted/50 border border-border">
         <p className="text-xs text-muted-foreground text-center">
-          <strong className="text-foreground">Disclaimer:</strong> Scheme details are updated periodically. 
-          Please verify eligibility and benefits on official government portals before applying.
+          <strong className="text-foreground">Disclaimer:</strong> Scheme details are fetched from AI-powered sources and updated regularly. 
+          Please verify eligibility and benefits on official government portals before applying. 
+          {isLiveData && ' Data is refreshed in real-time.'}
         </p>
       </div>
     </div>
