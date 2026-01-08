@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getSupabaseWithSession } from '@/lib/supabaseWithSession';
 import { useSessionId } from './useSessionId';
-import { BillInsights, SavingsTip, BillType } from '@/types/bill';
+import { BillInsights } from '@/types/bill';
 
 export interface BillHistoryRecord {
   id: string;
@@ -21,29 +21,39 @@ export const useBillHistory = () => {
   const [history, setHistory] = useState<BillHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Create supabase client with session headers
+  const supabase = useMemo(() => getSupabaseWithSession(), []);
+
   const fetchHistory = useCallback(async () => {
     if (!sessionId) return;
     
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('bill_analyses')
-      .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .setHeader('x-session-id', sessionId);
+    try {
+      const { data, error } = await supabase
+        .from('bill_analyses')
+        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setHistory(data);
+      if (error) {
+        console.error('Error fetching bill history:', error);
+      } else if (data) {
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
     }
     setIsLoading(false);
-  }, [sessionId]);
+  }, [sessionId, supabase]);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
   const saveBillAnalysis = useCallback(async (insights: BillInsights): Promise<boolean> => {
-    if (!sessionId) return false;
+    if (!sessionId) {
+      console.error('No session ID available');
+      return false;
+    }
 
     const billType = insights.billData.billType || 'electricity';
 
@@ -68,17 +78,22 @@ export const useBillHistory = () => {
       savings_tips: insights.savingsTips as unknown as Record<string, unknown>[],
     };
 
-    const { error } = await supabase.from('bill_analyses').insert(insertData as any).setHeader('x-session-id', sessionId);
+    console.log('Inserting bill with session_id:', sessionId);
+    
+    const { error } = await supabase
+      .from('bill_analyses')
+      .insert(insertData as any);
 
-    if (!error) {
-      // Refresh history
-      await fetchHistory();
-      return true;
+    if (error) {
+      console.error('Error saving bill analysis:', error);
+      return false;
     }
     
-    console.error('Error saving bill analysis:', error);
-    return false;
-  }, [sessionId, fetchHistory]);
+    console.log('Bill saved successfully, refreshing history...');
+    // Refresh history
+    await fetchHistory();
+    return true;
+  }, [sessionId, supabase, fetchHistory]);
 
-  return { history, isLoading, saveBillAnalysis, sessionId };
+  return { history, isLoading, saveBillAnalysis, sessionId, refreshHistory: fetchHistory };
 };
