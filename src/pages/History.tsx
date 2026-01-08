@@ -17,34 +17,36 @@ const History = () => {
   const navigate = useNavigate();
 
   const viewBillInsights = (record: typeof history[0]) => {
-    // Store bill data in sessionStorage for the Insights page
+    // Store bill data in sessionStorage in the correct BillInsights structure
     const insights = {
-      totalUnits: record.total_units,
-      totalAmount: record.total_amount,
-      billingMonth: record.billing_month,
-      previousUnits: record.previous_units,
-      previousAmount: record.previous_amount,
-      estimatedUnits: record.estimated_units,
-      estimatedAmount: record.estimated_amount,
-      savingsTips: record.savings_tips || [],
-      billType: record.bill_type || 'electricity',
-      language: record.language || 'english',
-      fixedCharges: record.fixed_charges,
-      taxesGst: record.taxes_gst,
-      additionalCharges: record.additional_charges,
-      dueAmount: record.due_amount,
-      dueDate: record.due_date,
-      consumerNumber: record.consumer_number,
-      tariffCategory: record.tariff_category,
-      aiSummary: record.ai_summary,
-      aiHinglishExplanation: record.ai_hinglish_explanation,
-      aiFactors: record.ai_factors,
-      estimationMethodology: record.estimation_methodology,
-      estimationConfidence: record.estimation_confidence,
+      billData: {
+        billType: record.bill_type || 'electricity',
+        billingMonth: record.billing_month,
+        totalUnits: record.total_units,
+        totalAmount: record.total_amount,
+        previousUnits: record.previous_units || 0,
+        previousAmount: record.previous_amount || 0,
+        tariffCategory: record.tariff_category || 'Domestic',
+        consumerNumber: record.consumer_number || 'N/A',
+        dueDate: record.due_date || 'N/A',
+      },
+      aiExplanation: {
+        summary: record.ai_summary || 'Analysis from your saved bill history.',
+        hinglishExplanation: record.ai_hinglish_explanation || 'Aapke bill ka analysis history se load kiya gaya.',
+        factors: record.ai_factors || [],
+      },
+      nextBillEstimate: {
+        estimatedUnits: record.estimated_units || record.total_units,
+        estimatedAmount: record.estimated_amount || record.total_amount,
+        methodology: record.estimation_methodology || 'Based on historical data',
+        confidence: (record.estimation_confidence as 'low' | 'medium' | 'high') || 'medium',
+      },
+      savingsTips: Array.isArray(record.savings_tips) ? record.savings_tips : [],
     };
     sessionStorage.setItem('billInsights', JSON.stringify(insights));
     sessionStorage.setItem('selectedLanguage', record.language || 'english');
-    sessionStorage.setItem('hasStoredFile', 'false'); // No file, viewing from history
+    sessionStorage.setItem('hasStoredFile', 'false');
+    sessionStorage.setItem('billSaved', 'true'); // Prevent re-saving
     navigate('/insights');
   };
 
