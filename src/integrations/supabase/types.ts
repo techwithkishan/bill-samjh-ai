@@ -16,17 +16,21 @@ export type Database = {
     Tables: {
       bill_analyses: {
         Row: {
+          additional_charges: number | null
           ai_factors: string[] | null
           ai_hinglish_explanation: string | null
           ai_summary: string | null
+          bill_type: string | null
           billing_month: string
           consumer_number: string | null
           created_at: string
+          due_amount: number | null
           due_date: string | null
           estimated_amount: number | null
           estimated_units: number | null
           estimation_confidence: string | null
           estimation_methodology: string | null
+          fixed_charges: number | null
           id: string
           language: string | null
           previous_amount: number | null
@@ -34,21 +38,26 @@ export type Database = {
           savings_tips: Json | null
           session_id: string
           tariff_category: string | null
+          taxes_gst: number | null
           total_amount: number
           total_units: number
         }
         Insert: {
+          additional_charges?: number | null
           ai_factors?: string[] | null
           ai_hinglish_explanation?: string | null
           ai_summary?: string | null
+          bill_type?: string | null
           billing_month: string
           consumer_number?: string | null
           created_at?: string
+          due_amount?: number | null
           due_date?: string | null
           estimated_amount?: number | null
           estimated_units?: number | null
           estimation_confidence?: string | null
           estimation_methodology?: string | null
+          fixed_charges?: number | null
           id?: string
           language?: string | null
           previous_amount?: number | null
@@ -56,21 +65,26 @@ export type Database = {
           savings_tips?: Json | null
           session_id: string
           tariff_category?: string | null
+          taxes_gst?: number | null
           total_amount: number
           total_units: number
         }
         Update: {
+          additional_charges?: number | null
           ai_factors?: string[] | null
           ai_hinglish_explanation?: string | null
           ai_summary?: string | null
+          bill_type?: string | null
           billing_month?: string
           consumer_number?: string | null
           created_at?: string
+          due_amount?: number | null
           due_date?: string | null
           estimated_amount?: number | null
           estimated_units?: number | null
           estimation_confidence?: string | null
           estimation_methodology?: string | null
+          fixed_charges?: number | null
           id?: string
           language?: string | null
           previous_amount?: number | null
@@ -78,6 +92,7 @@ export type Database = {
           savings_tips?: Json | null
           session_id?: string
           tariff_category?: string | null
+          taxes_gst?: number | null
           total_amount?: number
           total_units?: number
         }
