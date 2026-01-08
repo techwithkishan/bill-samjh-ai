@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionId } from './useSessionId';
-import { BillInsights, SavingsTip } from '@/types/bill';
+import { BillInsights, SavingsTip, BillType } from '@/types/bill';
 
-interface BillHistoryRecord {
+export interface BillHistoryRecord {
   id: string;
   billing_month: string;
   total_units: number;
@@ -12,6 +12,7 @@ interface BillHistoryRecord {
   previous_amount: number | null;
   tariff_category: string | null;
   consumer_number: string | null;
+  bill_type: string | null;
   created_at: string;
 }
 
@@ -27,7 +28,7 @@ export const useBillHistory = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('bill_analyses')
-        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, created_at')
+        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: false })
         .setHeader('x-session-id', sessionId);
@@ -44,6 +45,8 @@ export const useBillHistory = () => {
   const saveBillAnalysis = async (insights: BillInsights) => {
     if (!sessionId) return;
 
+    const billType = insights.billData.billType || 'electricity';
+
     const insertData = {
       session_id: sessionId,
       billing_month: insights.billData.billingMonth,
@@ -51,9 +54,10 @@ export const useBillHistory = () => {
       total_amount: insights.billData.totalAmount,
       previous_units: insights.billData.previousUnits,
       previous_amount: insights.billData.previousAmount,
-      tariff_category: insights.billData.tariffCategory,
+      tariff_category: insights.billData.tariffCategory || insights.billData.planName,
       consumer_number: insights.billData.consumerNumber,
       due_date: insights.billData.dueDate,
+      bill_type: billType,
       ai_summary: insights.aiExplanation.summary,
       ai_hinglish_explanation: insights.aiExplanation.hinglishExplanation,
       ai_factors: insights.aiExplanation.factors,
@@ -70,7 +74,7 @@ export const useBillHistory = () => {
       // Refresh history
       const { data } = await supabase
         .from('bill_analyses')
-        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, created_at')
+        .select('id, billing_month, total_units, total_amount, previous_units, previous_amount, tariff_category, consumer_number, bill_type, created_at')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: false })
         .setHeader('x-session-id', sessionId);

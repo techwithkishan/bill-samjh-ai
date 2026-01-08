@@ -1,15 +1,25 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileImage, FileText, X, AlertCircle } from 'lucide-react';
+import { Upload, FileImage, FileText, X, AlertCircle, Zap, Droplets, Smartphone, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BillType, billTypeConfig } from '@/types/bill';
+import { cn } from '@/lib/utils';
 
 interface FileUploadProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File, billType: BillType) => void;
   isProcessing: boolean;
 }
+
+const billTypeIcons: Record<BillType, React.ReactNode> = {
+  electricity: <Zap className="h-5 w-5" />,
+  water: <Droplets className="h-5 w-5" />,
+  mobile: <Smartphone className="h-5 w-5" />,
+  internet: <Wifi className="h-5 w-5" />,
+};
 
 const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedBillType, setSelectedBillType] = useState<BillType>('electricity');
   const [error, setError] = useState<string | null>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -69,7 +79,7 @@ const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
 
   const handleAnalyze = () => {
     if (selectedFile) {
-      onFileSelect(selectedFile);
+      onFileSelect(selectedFile, selectedBillType);
     }
   };
 
@@ -82,6 +92,36 @@ const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
 
   return (
     <div className="w-full max-w-xl mx-auto">
+      {/* Bill Type Selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-foreground mb-3 text-center">
+          What type of bill are you uploading?
+        </label>
+        <div className="grid grid-cols-4 gap-2">
+          {(Object.keys(billTypeConfig) as BillType[]).map((type) => {
+            const config = billTypeConfig[type];
+            const isSelected = selectedBillType === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setSelectedBillType(type)}
+                disabled={isProcessing}
+                className={cn(
+                  'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all',
+                  isSelected
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-card hover:border-primary/50 hover:bg-secondary'
+                )}
+              >
+                <span className="text-2xl">{config.icon}</span>
+                <span className="text-xs font-medium">{config.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Upload Zone */}
       {!selectedFile && (
         <div
@@ -101,11 +141,11 @@ const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
           <label htmlFor="file-upload" className="cursor-pointer">
             <div className="flex flex-col items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                <Upload className="h-8 w-8 text-primary" />
+                {billTypeIcons[selectedBillType]}
               </div>
               <div>
                 <p className="text-lg font-medium text-foreground">
-                  Drag and drop your bill here
+                  Drag and drop your {billTypeConfig[selectedBillType].label.toLowerCase()} bill here
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   or click to browse files
@@ -138,7 +178,7 @@ const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
       {/* Selected File Preview */}
       {selectedFile && !error && (
         <div className="mt-4 p-4 rounded-lg bg-secondary border border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               {getFileIcon(selectedFile.type)}
               <div>
@@ -157,19 +197,27 @@ const FileUpload = ({ onFileSelect, isProcessing }: FileUploadProps) => {
             </button>
           </div>
 
+          {/* Selected Bill Type Badge */}
+          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 mb-4">
+            <span className="text-lg">{billTypeConfig[selectedBillType].icon}</span>
+            <span className="text-sm font-medium text-primary">
+              {billTypeConfig[selectedBillType].label} Bill
+            </span>
+          </div>
+
           <Button
             onClick={handleAnalyze}
-            className="w-full mt-4"
+            className="w-full"
             size="lg"
             disabled={isProcessing}
           >
             {isProcessing ? (
               <>
                 <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Analyzing Bill...
+                Analyzing {billTypeConfig[selectedBillType].label} Bill...
               </>
             ) : (
-              'Analyze This Bill'
+              <>Analyze This {billTypeConfig[selectedBillType].label} Bill</>
             )}
           </Button>
         </div>

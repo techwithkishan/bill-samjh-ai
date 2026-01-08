@@ -3,10 +3,12 @@ import Layout from '@/components/layout/Layout';
 import { useBillHistory } from '@/hooks/useBillHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Zap, IndianRupee, Calendar, BarChart3, GitCompare } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, BarChart, Bar } from 'recharts';
 import { format } from 'date-fns';
+import { billTypeConfig, BillType } from '@/types/bill';
 
 const History = () => {
   const { history, isLoading } = useBillHistory();
@@ -236,10 +238,18 @@ const History = () => {
                           const change = prevRecord
                             ? ((record.total_amount - prevRecord.total_amount) / prevRecord.total_amount * 100).toFixed(1)
                             : null;
+                          const config = billTypeConfig[(record.bill_type || 'electricity') as BillType];
                           return (
                             <tr key={record.id} className="border-b last:border-0">
-                              <td className="py-3 px-2 font-medium">{record.billing_month}</td>
-                              <td className="text-right py-3 px-2">{record.total_units} kWh</td>
+                              <td className="py-3 px-2 font-medium">
+                                <span className="flex items-center gap-2">
+                                  <span>{config?.icon || '⚡'}</span>
+                                  {record.billing_month}
+                                </span>
+                              </td>
+                              <td className="text-right py-3 px-2">
+                                {record.total_units} {config?.unit || 'kWh'}
+                              </td>
                               <td className="text-right py-3 px-2">₹{record.total_amount}</td>
                               <td className={`text-right py-3 px-2 ${change && parseFloat(change) > 0 ? 'text-destructive' : 'text-green-600'}`}>
                                 {change ? `${parseFloat(change) > 0 ? '+' : ''}${change}%` : '-'}
