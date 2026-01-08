@@ -122,10 +122,38 @@ const Compare = () => {
   const canCompare = bill1 && bill2;
   const canAnalyze = file1 && file2 && !canCompare;
 
-  // Calculate differences
-  const getDiff = (val1: number, val2: number) => {
-    const diff = val1 - val2;
-    const percent = val2 !== 0 ? ((diff / val2) * 100).toFixed(1) : '0';
+  // Parse billing month to get date for comparison (e.g., "January 2024" -> Date)
+  const parseBillingMonth = (billingMonth: string): Date => {
+    const parts = billingMonth.split(' ');
+    if (parts.length >= 2) {
+      const monthStr = parts[0];
+      const yearStr = parts[parts.length - 1];
+      const date = new Date(`${monthStr} 1, ${yearStr}`);
+      if (!isNaN(date.getTime())) return date;
+    }
+    return new Date(0); // fallback for unparseable dates
+  };
+
+  // Get sorted bills: older on left, latest on right
+  const getSortedBills = () => {
+    if (!bill1 || !bill2) return { olderBill: null, latestBill: null };
+    
+    const date1 = parseBillingMonth(bill1.insights.billData.billingMonth);
+    const date2 = parseBillingMonth(bill2.insights.billData.billingMonth);
+    
+    if (date1 <= date2) {
+      return { olderBill: bill1, latestBill: bill2 };
+    } else {
+      return { olderBill: bill2, latestBill: bill1 };
+    }
+  };
+
+  const { olderBill, latestBill } = getSortedBills();
+
+  // Calculate differences from latest bill's perspective (latest - older)
+  const getDiff = (latestVal: number, olderVal: number) => {
+    const diff = latestVal - olderVal;
+    const percent = olderVal !== 0 ? ((diff / olderVal) * 100).toFixed(1) : '0';
     return { diff, percent };
   };
 
@@ -274,7 +302,7 @@ const Compare = () => {
           )}
 
           {/* Comparison Results */}
-          {canCompare && (
+          {canCompare && olderBill && latestBill && (
             <Card className="animate-in fade-in-50 duration-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -282,7 +310,7 @@ const Compare = () => {
                   Comparison Results
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {bill1.insights.billData.billingMonth} vs {bill2.insights.billData.billingMonth}
+                  {olderBill.insights.billData.billingMonth} (Older) → {latestBill.insights.billData.billingMonth} (Latest)
                 </p>
               </CardHeader>
               <CardContent>
@@ -293,30 +321,32 @@ const Compare = () => {
                       <thead>
                         <tr className="border-b">
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Metric</th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-primary">
-                            {bill1.insights.billData.billingMonth}
-                          </th>
                           <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
-                            {bill2.insights.billData.billingMonth}
+                            {olderBill.insights.billData.billingMonth}
+                            <span className="block text-xs font-normal">(Older)</span>
                           </th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Difference</th>
+                          <th className="text-right py-3 px-4 text-sm font-medium text-primary">
+                            {latestBill.insights.billData.billingMonth}
+                            <span className="block text-xs font-normal">(Latest)</span>
+                          </th>
+                          <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Change</th>
                         </tr>
                       </thead>
                       <tbody>
                         {/* Total Units */}
                         <tr className="border-b">
                           <td className="py-3 px-4 text-sm font-medium">Usage Units</td>
-                          <td className="text-right py-3 px-4 text-sm font-semibold">
-                            {bill1.insights.billData.totalUnits} kWh
-                          </td>
                           <td className="text-right py-3 px-4 text-sm">
-                            {bill2.insights.billData.totalUnits} kWh
+                            {olderBill.insights.billData.totalUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            {latestBill.insights.billData.totalUnits} kWh
                           </td>
                           <td className="text-right py-3 px-4 text-sm">
                             {(() => {
                               const { diff, percent } = getDiff(
-                                bill1.insights.billData.totalUnits,
-                                bill2.insights.billData.totalUnits
+                                latestBill.insights.billData.totalUnits,
+                                olderBill.insights.billData.totalUnits
                               );
                               return (
                                 <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
@@ -330,17 +360,17 @@ const Compare = () => {
                         {/* Total Amount */}
                         <tr className="border-b">
                           <td className="py-3 px-4 text-sm font-medium">Total Amount</td>
-                          <td className="text-right py-3 px-4 text-sm font-semibold">
-                            ₹{bill1.insights.billData.totalAmount.toLocaleString()}
-                          </td>
                           <td className="text-right py-3 px-4 text-sm">
-                            ₹{bill2.insights.billData.totalAmount.toLocaleString()}
+                            ₹{olderBill.insights.billData.totalAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            ₹{latestBill.insights.billData.totalAmount.toLocaleString()}
                           </td>
                           <td className="text-right py-3 px-4 text-sm">
                             {(() => {
                               const { diff, percent } = getDiff(
-                                bill1.insights.billData.totalAmount,
-                                bill2.insights.billData.totalAmount
+                                latestBill.insights.billData.totalAmount,
+                                olderBill.insights.billData.totalAmount
                               );
                               return (
                                 <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
@@ -354,17 +384,17 @@ const Compare = () => {
                         {/* Previous Units */}
                         <tr className="border-b">
                           <td className="py-3 px-4 text-sm font-medium">Previous Units</td>
-                          <td className="text-right py-3 px-4 text-sm font-semibold">
-                            {bill1.insights.billData.previousUnits} kWh
-                          </td>
                           <td className="text-right py-3 px-4 text-sm">
-                            {bill2.insights.billData.previousUnits} kWh
+                            {olderBill.insights.billData.previousUnits} kWh
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            {latestBill.insights.billData.previousUnits} kWh
                           </td>
                           <td className="text-right py-3 px-4 text-sm">
                             {(() => {
                               const { diff, percent } = getDiff(
-                                bill1.insights.billData.previousUnits,
-                                bill2.insights.billData.previousUnits
+                                latestBill.insights.billData.previousUnits,
+                                olderBill.insights.billData.previousUnits
                               );
                               return (
                                 <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
@@ -378,17 +408,17 @@ const Compare = () => {
                         {/* Previous Amount */}
                         <tr className="border-b">
                           <td className="py-3 px-4 text-sm font-medium">Previous Amount</td>
-                          <td className="text-right py-3 px-4 text-sm font-semibold">
-                            ₹{bill1.insights.billData.previousAmount.toLocaleString()}
-                          </td>
                           <td className="text-right py-3 px-4 text-sm">
-                            ₹{bill2.insights.billData.previousAmount.toLocaleString()}
+                            ₹{olderBill.insights.billData.previousAmount.toLocaleString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-sm font-semibold">
+                            ₹{latestBill.insights.billData.previousAmount.toLocaleString()}
                           </td>
                           <td className="text-right py-3 px-4 text-sm">
                             {(() => {
                               const { diff, percent } = getDiff(
-                                bill1.insights.billData.previousAmount,
-                                bill2.insights.billData.previousAmount
+                                latestBill.insights.billData.previousAmount,
+                                olderBill.insights.billData.previousAmount
                               );
                               return (
                                 <span className={diff > 0 ? 'text-destructive' : diff < 0 ? 'text-success' : ''}>
@@ -405,15 +435,15 @@ const Compare = () => {
                   {/* Quick Insights */}
                   <div className="grid md:grid-cols-2 gap-4 mt-6">
                     <div className="p-4 rounded-lg bg-secondary/50">
-                      <h4 className="text-sm font-semibold mb-2">Bill 1 Summary</h4>
+                      <h4 className="text-sm font-semibold mb-2">{olderBill.insights.billData.billingMonth} Summary</h4>
                       <p className="text-sm text-muted-foreground">
-                        {bill1.insights.aiExplanation.summary || 'No AI summary available.'}
+                        {olderBill.insights.aiExplanation.summary || 'No AI summary available.'}
                       </p>
                     </div>
                     <div className="p-4 rounded-lg bg-secondary/50">
-                      <h4 className="text-sm font-semibold mb-2">Bill 2 Summary</h4>
+                      <h4 className="text-sm font-semibold mb-2">{latestBill.insights.billData.billingMonth} Summary</h4>
                       <p className="text-sm text-muted-foreground">
-                        {bill2.insights.aiExplanation.summary || 'No AI summary available.'}
+                        {latestBill.insights.aiExplanation.summary || 'No AI summary available.'}
                       </p>
                     </div>
                   </div>
@@ -426,19 +456,19 @@ const Compare = () => {
                     </h4>
                     <p className="text-sm text-muted-foreground">
                       {(() => {
-                        const amountDiff = bill1.insights.billData.totalAmount - bill2.insights.billData.totalAmount;
-                        const unitsDiff = bill1.insights.billData.totalUnits - bill2.insights.billData.totalUnits;
-                        const month1 = bill1.insights.billData.billingMonth;
-                        const month2 = bill2.insights.billData.billingMonth;
+                        const amountDiff = latestBill.insights.billData.totalAmount - olderBill.insights.billData.totalAmount;
+                        const unitsDiff = latestBill.insights.billData.totalUnits - olderBill.insights.billData.totalUnits;
+                        const olderMonth = olderBill.insights.billData.billingMonth;
+                        const latestMonth = latestBill.insights.billData.billingMonth;
                         
                         if (amountDiff > 0 && unitsDiff > 0) {
-                          return `Your ${month1} bill is ₹${amountDiff.toLocaleString()} higher than ${month2}, with ${unitsDiff} more units consumed. Consider reviewing your usage patterns.`;
+                          return `Your ${latestMonth} bill is ₹${amountDiff.toLocaleString()} higher than ${olderMonth}, with ${unitsDiff} more units consumed. Consider reviewing your usage patterns.`;
                         } else if (amountDiff < 0 && unitsDiff < 0) {
-                          return `Great news! Your ${month1} bill is ₹${Math.abs(amountDiff).toLocaleString()} lower than ${month2}, with ${Math.abs(unitsDiff)} fewer units consumed. Keep up the good work!`;
+                          return `Great news! Your ${latestMonth} bill is ₹${Math.abs(amountDiff).toLocaleString()} lower than ${olderMonth}, with ${Math.abs(unitsDiff)} fewer units consumed. Keep up the good work!`;
                         } else if (amountDiff > 0 && unitsDiff <= 0) {
-                          return `Your ${month1} bill is ₹${amountDiff.toLocaleString()} higher despite using similar or fewer units. Check for rate changes or additional charges.`;
+                          return `Your ${latestMonth} bill is ₹${amountDiff.toLocaleString()} higher despite using similar or fewer units. Check for rate changes or additional charges.`;
                         } else {
-                          return `Your bills show a mixed pattern. ${month1} has ${unitsDiff > 0 ? 'higher' : 'lower'} usage but ${amountDiff > 0 ? 'higher' : 'lower'} charges compared to ${month2}.`;
+                          return `Your ${latestMonth} bill has ${unitsDiff > 0 ? 'higher' : 'lower'} usage but ${amountDiff > 0 ? 'higher' : 'lower'} charges compared to ${olderMonth}.`;
                         }
                       })()}
                     </p>
