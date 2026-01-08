@@ -10,6 +10,7 @@ import Insights from "./pages/Insights";
 import Technology from "./pages/Technology";
 import Learn from "./pages/Learn";
 import History from "./pages/History";
+import Compare from "./pages/Compare";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/technology" element={<Technology />} />
             <Route path="/learn" element={<Learn />} />
             <Route path="/history" element={<History />} />
+            <Route path="/compare" element={<Compare />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
