@@ -1,30 +1,85 @@
 /**
  * Bill Comparison Page
- * Allows users to upload and compare two bills side by side
+ * Allows users to compare bills from history or upload new ones
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, GitCompare, ArrowRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, GitCompare, ArrowRight, RotateCcw, History } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import CompareUploadCard from '@/components/comparison/CompareUploadCard';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SimpleUploadCard from '@/components/comparison/SimpleUploadCard';
 import { useBillAnalysis } from '@/hooks/useBillAnalysis';
+import { useBillHistory } from '@/hooks/useBillHistory';
 import { BillInsights, BillType } from '@/types/bill';
 
 interface AnalyzedBillData {
   insights: BillInsights;
-  month: string;
-  year: string;
 }
 
 const Compare = () => {
   const { analyzeBill, isProcessing } = useBillAnalysis();
+  const { history, isLoading: historyLoading } = useBillHistory();
   
   const [bill1, setBill1] = useState<AnalyzedBillData | null>(null);
   const [bill2, setBill2] = useState<AnalyzedBillData | null>(null);
   const [activeAnalysis, setActiveAnalysis] = useState<1 | 2 | null>(null);
+  const [selectedHistoryBill1, setSelectedHistoryBill1] = useState<string>('');
+  const [selectedHistoryBill2, setSelectedHistoryBill2] = useState<string>('');
+
+  const hasEnoughHistory = history.length >= 2;
+
+  // Convert history record to BillInsights format
+  const historyToBillInsights = (record: typeof history[0]): BillInsights => ({
+    billData: {
+      billType: (record.bill_type || 'electricity') as BillType,
+      billingMonth: record.billing_month,
+      totalUnits: record.total_units,
+      totalAmount: record.total_amount,
+      previousUnits: record.previous_units || 0,
+      previousAmount: record.previous_amount || 0,
+      tariffCategory: record.tariff_category || 'Domestic',
+      consumerNumber: record.consumer_number || 'N/A',
+      dueDate: record.due_date || 'N/A',
+    },
+    aiExplanation: {
+      summary: record.ai_summary || 'Analysis from your saved bill history.',
+      hinglishExplanation: record.ai_hinglish_explanation || '',
+      factors: record.ai_factors || [],
+    },
+    nextBillEstimate: {
+      estimatedUnits: record.estimated_units || record.total_units,
+      estimatedAmount: record.estimated_amount || record.total_amount,
+      methodology: record.estimation_methodology || 'Based on historical data',
+      confidence: (record.estimation_confidence as 'low' | 'medium' | 'high') || 'medium',
+    },
+    savingsTips: Array.isArray(record.savings_tips) ? record.savings_tips : [],
+  });
+
+  // Handle history selection
+  useEffect(() => {
+    if (selectedHistoryBill1) {
+      const record = history.find(h => h.id === selectedHistoryBill1);
+      if (record) {
+        setBill1({ insights: historyToBillInsights(record) });
+      }
+    } else {
+      setBill1(null);
+    }
+  }, [selectedHistoryBill1, history]);
+
+  useEffect(() => {
+    if (selectedHistoryBill2) {
+      const record = history.find(h => h.id === selectedHistoryBill2);
+      if (record) {
+        setBill2({ insights: historyToBillInsights(record) });
+      }
+    } else {
+      setBill2(null);
+    }
+  }, [selectedHistoryBill2, history]);
 
   const handleAnalyze1 = async (file: File, billType: BillType) => {
     setActiveAnalysis(1);
@@ -40,17 +95,19 @@ const Compare = () => {
     return result;
   };
 
-  const handleBill1Analyzed = (insights: BillInsights, month: string, year: string) => {
-    setBill1({ insights, month, year });
+  const handleBill1Analyzed = (insights: BillInsights) => {
+    setBill1({ insights });
   };
 
-  const handleBill2Analyzed = (insights: BillInsights, month: string, year: string) => {
-    setBill2({ insights, month, year });
+  const handleBill2Analyzed = (insights: BillInsights) => {
+    setBill2({ insights });
   };
 
   const handleReset = () => {
     setBill1(null);
     setBill2(null);
+    setSelectedHistoryBill1('');
+    setSelectedHistoryBill2('');
   };
 
   const canCompare = bill1 && bill2;
@@ -82,7 +139,9 @@ const Compare = () => {
                   Compare Bills
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Upload two bills to compare them side by side
+                  {hasEnoughHistory 
+                    ? 'Select bills from history or upload new ones to compare'
+                    : 'Upload two bills to compare them side by side'}
                 </p>
               </div>
               {(bill1 || bill2) && (
@@ -94,26 +153,89 @@ const Compare = () => {
             </div>
           </div>
 
+          {/* History Selection (if 2+ bills in history) */}
+          {hasEnoughHistory && (
+            <Card className="bg-secondary/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Compare from History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Bill 1 (Base)
+                    </label>
+                    <Select value={selectedHistoryBill1} onValueChange={setSelectedHistoryBill1}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a bill from history" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {history.map((record) => (
+                          <SelectItem 
+                            key={record.id} 
+                            value={record.id}
+                            disabled={record.id === selectedHistoryBill2}
+                          >
+                            {record.billing_month} - ₹{record.total_amount.toLocaleString()} ({record.total_units} units)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Bill 2 (Compare To)
+                    </label>
+                    <Select value={selectedHistoryBill2} onValueChange={setSelectedHistoryBill2}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a bill from history" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {history.map((record) => (
+                          <SelectItem 
+                            key={record.id} 
+                            value={record.id}
+                            disabled={record.id === selectedHistoryBill1}
+                          >
+                            {record.billing_month} - ₹{record.total_amount.toLocaleString()} ({record.total_units} units)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Or upload new bills below to compare
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Upload Section */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <CompareUploadCard
-              title="Bill 1 (Base)"
-              billNumber={1}
-              onBillAnalyzed={handleBill1Analyzed}
-              isProcessing={activeAnalysis === 1}
-              onAnalyze={handleAnalyze1}
-              analyzedBill={bill1?.insights || null}
-            />
-            
-            <CompareUploadCard
-              title="Bill 2 (Compare To)"
-              billNumber={2}
-              onBillAnalyzed={handleBill2Analyzed}
-              isProcessing={activeAnalysis === 2}
-              onAnalyze={handleAnalyze2}
-              analyzedBill={bill2?.insights || null}
-            />
-          </div>
+          {!selectedHistoryBill1 && !selectedHistoryBill2 && (
+            <div className="grid md:grid-cols-2 gap-6">
+              <SimpleUploadCard
+                title="Bill 1 (Base)"
+                billNumber={1}
+                onBillAnalyzed={handleBill1Analyzed}
+                isProcessing={activeAnalysis === 1}
+                onAnalyze={handleAnalyze1}
+                analyzedBill={bill1?.insights || null}
+              />
+              
+              <SimpleUploadCard
+                title="Bill 2 (Compare To)"
+                billNumber={2}
+                onBillAnalyzed={handleBill2Analyzed}
+                isProcessing={activeAnalysis === 2}
+                onAnalyze={handleAnalyze2}
+                analyzedBill={bill2?.insights || null}
+              />
+            </div>
+          )}
 
           {/* Comparison Results */}
           {canCompare && (
@@ -124,7 +246,7 @@ const Compare = () => {
                   Comparison Results
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {bill1.month} {bill1.year} vs {bill2.month} {bill2.year}
+                  {bill1.insights.billData.billingMonth} vs {bill2.insights.billData.billingMonth}
                 </p>
               </CardHeader>
               <CardContent>
@@ -136,10 +258,10 @@ const Compare = () => {
                         <tr className="border-b">
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Metric</th>
                           <th className="text-right py-3 px-4 text-sm font-medium text-primary">
-                            {bill1.month} {bill1.year}
+                            {bill1.insights.billData.billingMonth}
                           </th>
                           <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
-                            {bill2.month} {bill2.year}
+                            {bill2.insights.billData.billingMonth}
                           </th>
                           <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Difference</th>
                         </tr>
@@ -270,15 +392,17 @@ const Compare = () => {
                       {(() => {
                         const amountDiff = bill1.insights.billData.totalAmount - bill2.insights.billData.totalAmount;
                         const unitsDiff = bill1.insights.billData.totalUnits - bill2.insights.billData.totalUnits;
+                        const month1 = bill1.insights.billData.billingMonth;
+                        const month2 = bill2.insights.billData.billingMonth;
                         
                         if (amountDiff > 0 && unitsDiff > 0) {
-                          return `Your ${bill1.month} bill is ₹${amountDiff.toLocaleString()} higher than ${bill2.month}, with ${unitsDiff} more units consumed. Consider reviewing your usage patterns.`;
+                          return `Your ${month1} bill is ₹${amountDiff.toLocaleString()} higher than ${month2}, with ${unitsDiff} more units consumed. Consider reviewing your usage patterns.`;
                         } else if (amountDiff < 0 && unitsDiff < 0) {
-                          return `Great news! Your ${bill1.month} bill is ₹${Math.abs(amountDiff).toLocaleString()} lower than ${bill2.month}, with ${Math.abs(unitsDiff)} fewer units consumed. Keep up the good work!`;
+                          return `Great news! Your ${month1} bill is ₹${Math.abs(amountDiff).toLocaleString()} lower than ${month2}, with ${Math.abs(unitsDiff)} fewer units consumed. Keep up the good work!`;
                         } else if (amountDiff > 0 && unitsDiff <= 0) {
-                          return `Your ${bill1.month} bill is ₹${amountDiff.toLocaleString()} higher despite using similar or fewer units. Check for rate changes or additional charges.`;
+                          return `Your ${month1} bill is ₹${amountDiff.toLocaleString()} higher despite using similar or fewer units. Check for rate changes or additional charges.`;
                         } else {
-                          return `Your bills show a mixed pattern. ${bill1.month} has ${unitsDiff > 0 ? 'higher' : 'lower'} usage but ${amountDiff > 0 ? 'higher' : 'lower'} charges compared to ${bill2.month}.`;
+                          return `Your bills show a mixed pattern. ${month1} has ${unitsDiff > 0 ? 'higher' : 'lower'} usage but ${amountDiff > 0 ? 'higher' : 'lower'} charges compared to ${month2}.`;
                         }
                       })()}
                     </p>
@@ -291,7 +415,9 @@ const Compare = () => {
           {/* Help Text */}
           {!canCompare && (
             <div className="text-center text-sm text-muted-foreground p-4 rounded-lg bg-muted/50">
-              Upload both bills with month/year selection to see the comparison results.
+              {hasEnoughHistory 
+                ? 'Select two bills from history above, or upload new bills to compare.'
+                : 'Upload both bills to see the comparison results.'}
             </div>
           )}
         </div>
