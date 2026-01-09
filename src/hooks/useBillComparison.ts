@@ -1,11 +1,12 @@
 /**
  * Bill Comparison Hook
  * Handles fetching bills, calculating differences, detecting anomalies, and generating insights
+ * Now uses Supabase Auth for secure access
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { getSupabaseWithSession } from '@/lib/supabaseWithSession';
-import { useSessionId } from './useSessionId';
+import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { BillRecord, ComparisonResult, DifferenceData, Anomaly, COMPARISON_ROWS } from '@/types/comparison';
 
 interface UseBillComparisonReturn {
@@ -20,23 +21,31 @@ interface UseBillComparisonReturn {
 }
 
 export const useBillComparison = (): UseBillComparisonReturn => {
-  const sessionId = useSessionId();
+  const { user, isAuthenticated, signInAnonymously, isLoading: authLoading } = useAuth();
   const [bills, setBills] = useState<BillRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [excludedBills, setExcludedBills] = useState<Set<string>>(new Set());
 
-  // Create supabase client with session headers
-  const supabase = useMemo(() => getSupabaseWithSession(), []);
+  // Auto-authenticate anonymously if not already authenticated
+  useEffect(() => {
+    const ensureAuthenticated = async () => {
+      if (!authLoading && !isAuthenticated) {
+        await signInAnonymously();
+      }
+    };
+    ensureAuthenticated();
+  }, [authLoading, isAuthenticated, signInAnonymously]);
 
-  // Fetch all bills for this session
+  // Fetch all bills for this user
   const fetchBills = useCallback(async () => {
-    if (!sessionId) return;
+    if (!user) return;
     
     setIsLoading(true);
     const { data, error } = await supabase
       .from('bill_analyses')
       .select('id, billing_month, bill_type, total_units, total_amount, taxes_gst, fixed_charges, additional_charges, due_amount, previous_units, previous_amount, created_at')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -58,12 +67,14 @@ export const useBillComparison = (): UseBillComparisonReturn => {
       setBills(mappedBills);
     }
     setIsLoading(false);
-  }, [sessionId, supabase]);
+  }, [user]);
 
-  // Initial fetch
+  // Initial fetch when user is available
   useEffect(() => {
-    fetchBills();
-  }, [fetchBills]);
+    if (user) {
+      fetchBills();
+    }
+  }, [user, fetchBills]);
 
   // Calculate percentage change
   const calcPercentChange = (current: number, previous: number): number => {
@@ -205,19 +216,20 @@ export const useBillComparison = (): UseBillComparisonReturn => {
 
   // Delete a bill
   const deleteBill = useCallback(async (billId: string): Promise<boolean> => {
-    if (!sessionId) return false;
+    if (!user) return false;
     
     const { error } = await supabase
       .from('bill_analyses')
       .delete()
-      .eq('id', billId);
+      .eq('id', billId)
+      .eq('user_id', user.id);
 
     if (!error) {
       setBills(prev => prev.filter(b => b.id !== billId));
       return true;
     }
     return false;
-  }, [sessionId, supabase]);
+  }, [user]);
 
   // Toggle bill exclusion from comparison
   const toggleExcludeBill = useCallback((billId: string) => {
@@ -234,7 +246,7 @@ export const useBillComparison = (): UseBillComparisonReturn => {
 
   return {
     bills,
-    isLoading,
+    isLoading: isLoading || authLoading,
     comparison,
     compareBills,
     clearComparison,

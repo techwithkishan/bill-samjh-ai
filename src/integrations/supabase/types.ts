@@ -41,6 +41,7 @@ export type Database = {
           taxes_gst: number | null
           total_amount: number
           total_units: number
+          user_id: string | null
         }
         Insert: {
           additional_charges?: number | null
@@ -68,6 +69,7 @@ export type Database = {
           taxes_gst?: number | null
           total_amount: number
           total_units: number
+          user_id?: string | null
         }
         Update: {
           additional_charges?: number | null
@@ -95,6 +97,7 @@ export type Database = {
           taxes_gst?: number | null
           total_amount?: number
           total_units?: number
+          user_id?: string | null
         }
         Relationships: []
       }
