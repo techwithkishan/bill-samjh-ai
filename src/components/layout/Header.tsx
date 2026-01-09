@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 const Header = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth();
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -22,9 +22,12 @@ const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
   };
+
+  // Get display name from user metadata or email
+  const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -49,7 +52,7 @@ const Header = () => {
                 {link.label}
               </Link>
             ))}
-            {isAuthenticated && (
+            {isAuthenticated && !user?.is_anonymous && (
               <Link to="/dashboard"
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive('/dashboard') ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -60,12 +63,12 @@ const Header = () => {
           </nav>
 
           <div className="hidden md:flex items-center gap-2">
-            {isAuthenticated ? (
+            {isAuthenticated && !user?.is_anonymous ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
                     <User className="h-4 w-4" />
-                    {user?.name?.split(' ')[0]}
+                    {displayName.split(' ')[0]}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -98,7 +101,7 @@ const Header = () => {
                   {link.label}
                 </Link>
               ))}
-              {isAuthenticated ? (
+              {isAuthenticated && !user?.is_anonymous ? (
                 <>
                   <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted">My Dashboard</Link>
                   <Button variant="outline" className="mx-4" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}>Logout</Button>

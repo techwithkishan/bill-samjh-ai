@@ -1,136 +1,84 @@
 /**
  * Authentication Context Provider
  * 
- * Provides global authentication state and methods throughout the app.
- * 
- * ============================================================
- * PRODUCTION NOTES
- * ============================================================
- * 
- * In production, this context would integrate with MSAL.js for Azure AD B2C:
- * 
- * ```typescript
- * import { useMsal, MsalProvider } from '@azure/msal-react';
- * import { PublicClientApplication } from '@azure/msal-browser';
- * 
- * const msalInstance = new PublicClientApplication({
- *   auth: {
- *     clientId: 'YOUR_CLIENT_ID',
- *     authority: 'https://YOUR_TENANT.b2clogin.com/YOUR_TENANT.onmicrosoft.com/B2C_1_signupsignin',
- *     redirectUri: window.location.origin,
- *   },
- *   cache: {
- *     cacheLocation: 'sessionStorage',
- *     storeAuthStateInCookie: true,
- *   }
- * });
- * ```
- * 
- * @see https://learn.microsoft.com/en-us/azure/active-directory-b2c/enable-authentication-react-spa-app
+ * Uses Supabase Auth for secure server-side authentication.
+ * Supports anonymous authentication for privacy-first users.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, AuthSession, AuthMethod } from '@/services/auth/types';
-import { mockStore } from '@/services/storage/mockStore';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
-  session: AuthSession | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (session: AuthSession) => void;
-  logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
+  signInAnonymously: () => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_STORAGE_KEY = 'billsamajh_session';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load session from storage on mount
   useEffect(() => {
-    const loadSession = () => {
-      try {
-        const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
-        if (storedSession) {
-          const parsedSession: AuthSession = JSON.parse(storedSession);
-          
-          // Check if session is expired
-          if (parsedSession.expiresAt > Date.now()) {
-            setSession(parsedSession);
-            setUser(parsedSession.user);
-          } else {
-            // Session expired, clear it
-            localStorage.removeItem(SESSION_STORAGE_KEY);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load session:', error);
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
       }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setIsLoading(false);
-    };
+    });
 
-    loadSession();
+    return () => subscription.unsubscribe();
   }, []);
 
   /**
-   * Login with a new session
-   * 
-   * TODO: In production, validate token with Azure AD B2C
-   * before accepting the session
+   * Sign in anonymously for privacy-first users
+   * This creates a proper authenticated session without requiring credentials
    */
-  const login = useCallback((newSession: AuthSession) => {
-    setSession(newSession);
-    setUser(newSession.user);
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+  const signInAnonymously = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error('Anonymous sign-in error:', error);
+        return { error };
+      }
+      return { error: null };
+    } catch (err) {
+      console.error('Anonymous sign-in failed:', err);
+      return { error: err instanceof Error ? err : new Error('Failed to sign in') };
+    }
   }, []);
 
   /**
-   * Logout and clear session
-   * 
-   * TODO: In production, also call msalInstance.logout()
-   * to clear Azure AD B2C session
+   * Sign out and clear session
    */
-  const logout = useCallback(() => {
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
     setSession(null);
     setUser(null);
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    
-    // Note: We don't clear the mock database on logout
-    // as that contains all users' data
   }, []);
-
-  /**
-   * Update user profile
-   */
-  const updateProfile = useCallback((updates: Partial<User>) => {
-    if (user && session) {
-      const updatedUser = { ...user, ...updates };
-      const updatedSession = { ...session, user: updatedUser };
-      
-      setUser(updatedUser);
-      setSession(updatedSession);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedSession));
-      
-      // Update in mock store
-      mockStore.updateUser(user.id, updates);
-    }
-  }, [user, session]);
 
   const value: AuthContextType = {
     user,
     session,
     isAuthenticated: !!user && !!session,
     isLoading,
-    login,
-    logout,
-    updateProfile,
+    signInAnonymously,
+    signOut,
   };
 
   return (

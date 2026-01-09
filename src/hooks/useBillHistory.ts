@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSupabaseWithSession } from '@/lib/supabaseWithSession';
-import { useSessionId } from './useSessionId';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { BillInsights } from '@/types/bill';
 
 export interface BillHistoryRecord {
@@ -28,51 +28,64 @@ export interface BillHistoryRecord {
   estimation_confidence: string | null;
   savings_tips: unknown;
   created_at: string;
+  user_id: string | null;
 }
 
 export const useBillHistory = () => {
-  const sessionId = useSessionId();
+  const { user, isAuthenticated, signInAnonymously, isLoading: authLoading } = useAuth();
   const [history, setHistory] = useState<BillHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Create supabase client with session headers
-  const supabase = useMemo(() => getSupabaseWithSession(), []);
+  // Auto-authenticate anonymously if not already authenticated
+  useEffect(() => {
+    const ensureAuthenticated = async () => {
+      if (!authLoading && !isAuthenticated) {
+        console.log('Not authenticated, signing in anonymously...');
+        await signInAnonymously();
+      }
+    };
+    ensureAuthenticated();
+  }, [authLoading, isAuthenticated, signInAnonymously]);
 
   const fetchHistory = useCallback(async () => {
-    if (!sessionId) return;
+    if (!user) return;
     
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('bill_analyses')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching bill history:', error);
       } else if (data) {
-        setHistory(data);
+        setHistory(data as BillHistoryRecord[]);
       }
     } catch (err) {
       console.error('Failed to fetch history:', err);
     }
     setIsLoading(false);
-  }, [sessionId, supabase]);
+  }, [user]);
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    if (user) {
+      fetchHistory();
+    }
+  }, [user, fetchHistory]);
 
   const saveBillAnalysis = useCallback(async (insights: BillInsights): Promise<boolean> => {
-    if (!sessionId) {
-      console.error('No session ID available');
+    if (!user) {
+      console.error('No authenticated user');
       return false;
     }
 
     const billType = insights.billData.billType || 'electricity';
 
     const insertData = {
-      session_id: sessionId,
+      user_id: user.id,
+      session_id: user.id, // Keep session_id for backwards compatibility
       billing_month: insights.billData.billingMonth,
       total_units: insights.billData.totalUnits,
       total_amount: insights.billData.totalAmount,
@@ -92,7 +105,7 @@ export const useBillHistory = () => {
       savings_tips: insights.savingsTips as unknown as Record<string, unknown>[],
     };
 
-    console.log('Inserting bill with session_id:', sessionId);
+    console.log('Inserting bill with user_id:', user.id);
     
     const { error } = await supabase
       .from('bill_analyses')
@@ -104,18 +117,18 @@ export const useBillHistory = () => {
     }
     
     console.log('Bill saved successfully, refreshing history...');
-    // Refresh history
     await fetchHistory();
     return true;
-  }, [sessionId, supabase, fetchHistory]);
+  }, [user, fetchHistory]);
 
   const deleteBill = useCallback(async (billId: string): Promise<boolean> => {
-    if (!sessionId) return false;
+    if (!user) return false;
 
     const { error } = await supabase
       .from('bill_analyses')
       .delete()
-      .eq('id', billId);
+      .eq('id', billId)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error deleting bill:', error);
@@ -124,7 +137,15 @@ export const useBillHistory = () => {
 
     await fetchHistory();
     return true;
-  }, [sessionId, supabase, fetchHistory]);
+  }, [user, fetchHistory]);
 
-  return { history, isLoading, saveBillAnalysis, deleteBill, sessionId, refreshHistory: fetchHistory };
+  return { 
+    history, 
+    isLoading: isLoading || authLoading, 
+    saveBillAnalysis, 
+    deleteBill, 
+    userId: user?.id, 
+    refreshHistory: fetchHistory,
+    isAuthenticated 
+  };
 };
