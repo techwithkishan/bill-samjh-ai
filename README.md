@@ -1,72 +1,230 @@
-# Welcome to your Lovable project
+# BillSamajh AI - Smart Utility Bill Explainer for India
 
-## Project info
+> **"Understand Your Bill. Not Just Pay It."**
 
-**URL**: https://bill-samajh-ai.lovable.app
+BillSamajh AI is an AI-powered utility bill analysis platform designed specifically for Indian households. It reads your electricity, water, mobile, and internet bills, explains every charge in simple language, predicts your next bill, and gives you personalized money-saving tips.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Problem We're Solving
 
-**Use Lovable**
+Utility bills in India are notoriously complex:
+- **Multiple tariff slabs** that make calculation confusing
+- **Technical jargon** most people can't understand
+- **Hidden surcharges** and government levies that inflate bills unexpectedly
+- **No usage breakdown** to identify what's consuming the most
+- **Sudden bill spikes** with no explanation provided
 
-Simply visit the [(https://bill-samajh-ai.lovable.app) and start prompting.
+Most payment apps only tell you how much to pay. BillSamajh AI tells you **why** you're paying that amount and **how to pay less**.
 
+---
 
-**Use your preferred IDE**
+## What BillSamajh AI Does
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Upload** a photo or PDF of your bill
+2. **AI analyzes** every line item using advanced computer vision and language models
+3. **Get explanations** in simple, jargon-free language (Hinglish or 5 other Indian languages)
+4. **Compare bills** side-by-side to track your usage and costs over time
+5. **Predict your next bill** with AI-powered forecasting
+6. **Receive personalized tips** on how to reduce your bills
+7. **Discover government schemes** and subsidies you might be eligible for
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## Key Features
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+| Feature | Description |
+|---------|-------------|
+| Multi-Bill Support | Analyze Electricity, Water, Mobile, and Internet bills |
+| Multi-Language AI | Get explanations in English, Hindi, Tamil, Telugu, Marathi, and Bengali |
+| AI-Powered Explanations | Understand every charge with simple, human-friendly explanations |
+| Next Bill Prediction | AI estimates your upcoming bill based on usage patterns |
+| Bill Comparison | Compare any two bills side-by-side to spot trends |
+| Personalized Savings Tips | Actionable recommendations based on your actual consumption |
+| Government Schemes | Discover subsidies and programs available in your state |
+| Bill History | Track and manage all your past bill analyses |
+| Analytics Dashboard | Visualize consumption trends with charts and graphs |
+| Privacy First | No permanent data storage. Your data is yours. |
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Tech Stack
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type-safe development
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Utility-first styling
+- **shadcn/ui** - Component library
+- **Recharts** - Data visualization
+
+### Backend & AI
+- **Lovable Cloud** - Backend infrastructure (PostgreSQL, Auth, Edge Functions)
+- **Google Gemini 2.5 Flash** - AI model for bill analysis via Lovable AI Gateway
+- **Deno Edge Functions** - Serverless API endpoints
+
+### Key Libraries
+- React Router DOM - Client-side routing
+- TanStack Query - Server state management
+- Zod - Schema validation
+- jsPDF - PDF report generation
+
+---
+
+## Architecture
+
+```
+User Uploads Bill (Image/PDF)
+    |
+    v
+React Frontend (Vite + Tailwind + shadcn/ui)
+    |
+    v
+Edge Function (Deno Runtime)
+    |
+    v
+Google Gemini 2.5 Flash AI
+- OCR + Structured Data Extraction
+- Bill Explanation Generation
+- Savings Tip Prediction
+    |
+    v
+Lovable Cloud (PostgreSQL)
+- Bill History Storage
+- User Authentication (RLS secured)
+    |
+    v
+User Sees Results
+- Summary + Explanation
+- Predictions + Tips
+- Comparison + Analytics
+```
+
+---
+
+## Supported Providers
+
+### Electricity Boards
+MSEDCL, TPDDL, BSES, CESC, TANGEDCO, BESCOM, APSPDCL, UPPCL, PGVCL, WBSEDCL, and all state electricity boards
+
+### Water Boards
+Delhi Jal Board, BWSSB, MCGM, CMWSSB, HMWSSB, PHED, KWA
+
+### Mobile Operators
+Jio, Airtel, Vi (Vodafone Idea), BSNL, MTNL
+
+### Internet/Broadband
+Jio Fiber, Airtel Xstream, ACT Fibernet, BSNL Fiber, Tata Play Fiber, Hathway, Tikona
+
+---
+
+## Unique Selling Points
+
+| Comparison | Payment Apps | BillSamajh AI |
+|------------|-------------|---------------|
+| Bill Understanding | Shows amount due only | Explains every charge in simple language |
+| Usage Analysis | No breakdown | Identifies high-consumption periods |
+| Next Bill Prediction | Not available | AI-powered monthly estimates |
+| Savings Tips | Generic advice | Personalized to your actual usage |
+| Data Privacy | Linked to payments | No permanent data storage |
+| Language Support | English only | 6 Indian languages |
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or bun
+
+### Installation
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd bill-samajh-ai
+
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Environment Setup
 
-**Use GitHub Codespaces**
+The project uses Lovable Cloud for backend services. For local development:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Create a `.env` file in the project root
+2. Add your environment variables (Lovable automatically configures Supabase credentials)
+3. Ensure your Lovable Cloud backend is active
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## Core Pages
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Page | Description |
+|------|-------------|
+| `/` | Landing page with problem statement and solution |
+| `/upload` | Bill upload with type and language selection |
+| `/insights` | AI analysis results (summary, explanation, predictions, tips) |
+| `/compare` | Side-by-side bill comparison with auto-sorting |
+| `/analytics` | Usage trends, forecasts, and government schemes |
+| `/history` | Manage past bill analyses with delete option |
+| `/learn` | Educational resources about utility billing |
+| `/technology` | How the technology works (AI, OCR, cloud) |
 
-## How can I deploy this project?
+---
 
-Simply open [[Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID)](https://bill-samajh-ai.lovable.app) and click on Share -> Publish.
+## Security
 
-## Can I connect a custom domain to my Lovable project?
+- **Row-Level Security (RLS)** - Users can only access their own data
+- **CORS Restricted** - Edge functions only accept requests from trusted domains
+- **Input Validation** - All user inputs are validated for type, size, and format
+- **No Permanent Storage** - Bill data is processed in real-time, not stored permanently by default
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Project Context
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project was built with a focus on **accessibility and simplicity** for everyday Indian consumers. The design philosophy centers on:
+- **Clarity over complexity** - Every piece of information is explained
+- **Multi-language support** - Because language should not be a barrier to understanding your bills
+- **Privacy first** - Your financial data stays private
+- **No over-engineering** - Table-first design, clean UI, intuitive flow
+
+---
+
+## Roadmap
+
+- [x] Multi-bill type support (Electricity, Water, Mobile, Internet)
+- [x] Multi-language AI explanations
+- [x] Bill comparison with auto-sorting
+- [x] Bill history with delete functionality
+- [x] Analytics dashboard with forecasting
+- [x] Government schemes lookup
+- [ ] Real-time government scheme API integration
+- [ ] Mobile app (React Native)
+- [ ] WhatsApp bot integration for bill analysis
+- [ ] Community savings challenges
+
+---
+
+## License
+
+This project is open source and available for educational and personal use.
+
+---
+
+## Acknowledgements
+
+- Built with [Lovable](https://lovable.dev) - AI-powered app builder
+- AI analysis powered by Google Gemini 2.5 Flash
+- Component library: [shadcn/ui](https://ui.shadcn.com)
+- Icons: [Lucide](https://lucide.dev)
+
+---
+
+> **Note:** This README reflects the current state of the project. For the most up-to-date information, refer to the codebase directly.
